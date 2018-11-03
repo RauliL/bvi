@@ -408,38 +408,6 @@ do_shell()
 }
 
 
-#ifndef HAVE_STRDUP
-char *
-strdup(s)
-	char	*s;
-{
-	char    *p;
-	size_t	 n;
-
-	n = strlen(s) + 1;
-	if ((p = (char *)malloc(n)) != NULL)
-		memcpy(p, s, n);
-	return (p);
-}
-#endif
-
-
-#ifndef HAVE_MEMMOVE
-/*
- * Copy contents of memory (with possible overlapping).
- */
-char *
-memmove(s1, s2, n)
-	char	*s1;
-	char	*s2;
-	size_t	n;
-{
-	bcopy(s2, s1, n);
-	return(s1);
-}
-#endif
-
-
 off_t
 alloc_buf(n, buffer)
 	off_t	n;

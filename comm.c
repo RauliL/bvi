@@ -88,6 +88,8 @@ extern	int		errno;
 
 static	char	oldbuf[CMDSZ];		/** for :!! command **/
 
+static int save_chk(char*, char*, char*, int);
+
 
 /*
  * docmdline() - handle a colon command
@@ -626,7 +628,7 @@ yd_addr()
 
 
 /*********** Save file if not read only ********************/
-int
+static int
 save_chk(fname, start, end, flags)
    char    *fname;
    char    *start;
@@ -750,11 +752,7 @@ sysemsg(s)
 {
 	char	string[256];
 
-#ifdef HAVE_STRERROR
 	sprintf(string, "%s: %s", s, strerror(errno));
-#else
-	sprintf(string, "%s: %s", s, sys_errlist[errno]);
-#endif
 
 	emsg(string);
 }

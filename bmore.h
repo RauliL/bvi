@@ -48,21 +48,13 @@
 #	include "patchlevel.h"
 #	include "config.h"
 #	include <unistd.h>
-# if HAVE_NCURSES_H
+# if defined(HAVE_NCURSES_H)
 #   include <ncurses.h>
 # else
 #   include <curses.h>
 # endif 
-# if HAVE_TERM_H
-#	include <term.h>
-# else
-#  if HAVE_NCURSES_TERM_H
-#	include <ncurses/term.h>
-#  else 
-#	include <term.h>
-#  endif
-# endif
 #endif
+#include <term.h>
 
 
 /* defines for filemode */
@@ -117,10 +109,6 @@
 
 #ifdef DEBUG
 	extern FILE *debug_fp;
-#endif
-
-#ifndef HAVE_STRERROR
-	extern  char    *sys_errlist[];
 #endif
 
 extern	char	*version;

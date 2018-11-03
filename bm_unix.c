@@ -48,26 +48,10 @@ int		got_int;
 int     fnum, no_intty, no_tty, slow_tty;
 int     dum_opt, dlines;
 
-#ifdef HAVE_NCURSES_H
-#	undef NEED_PUTC_CHAR
-#endif
-/*
- * A real function, for the tputs routine
- */
-#ifdef NEED_PUTC_CHAR
-
-int
-putchr(char ch)
-{return putchar((int)ch);}
-
-#else
-
 int
 putchr(ch)
 	int ch;
 {return putchar(ch);}
-
-#endif
 
 
 void
@@ -269,19 +253,3 @@ vgetc()
     }
     return (cha);
 }
-
-
-#ifndef HAVE_MEMMOVE
-/*
- * Copy contents of memory (with possible overlapping).
- */
-char *
-memmove(s1, s2, n)
-	char    *s1;
-	char    *s2;
-	size_t  n;
-{
-	bcopy(s2, s1, n);
-	return(s1);
-}
-#endif

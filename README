@@ -9,11 +9,13 @@ and is distributed under the GPL (GNU Public License).
 How to compile
 ==============
 
-	gunzip -c bvi-1.4.0.src.tar.gz | tar xvf -
-	cd bvi-1.4.0
-	./configure
-	make
-	make install
+    git clone https://github.com/RauliL/bvi.git
+    cd bvi
+    mkdir build
+    cd build
+    cmake ..
+    make
+    sudo make install
 
 
 MAC OS X

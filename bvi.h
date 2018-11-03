@@ -49,7 +49,7 @@
 #else
 #	include "patchlevel.h"
 #	include "config.h"
-#if HAVE_NCURSES_H
+#if defined(HAVE_NCURSES_H)
 #   include <ncurses.h>
 #else
 #   include <curses.h>
@@ -142,10 +142,6 @@ typedef enum _block_datum {
 
 #ifdef DEBUG
 	extern FILE *debug_fp;
-#endif
-
-#ifndef HAVE_STRERROR
-	extern  char    *sys_errlist[];
 #endif
 
 extern	char	*version;
