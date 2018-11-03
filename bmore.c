@@ -34,9 +34,6 @@
 #endif
 
 #define PRINTF	printf
-#ifndef HELPFILE
-#  define HELPFILE "/usr/local/lib/bmore.help"
-#endif
 
 #include "bmore.h"
 
@@ -73,7 +70,6 @@ off_t	last_search = 0;
 off_t	screen_home, filesize;
 off_t	bytepos, oldpos;
 int		prompt = 1;
-char	helppath[MAXCMD];
 
 static	char	progname[10];
 static	char	cmdbuf[MAXCMD];
@@ -84,6 +80,35 @@ static	int		smode;
 /* char	search_pat[BUFFER];	*/  /* / or ? command */
 char	bmore_search_pat[BUFFER];   /* / or ? command */
 char	*emptyclass = "Empty byte class '[]' or '[^]'";
+
+static const char* help =
+"Most commands optionally preceded by integer argument k.  Defaults in brackets.\n"
+"Star (*) indicates argument becomes new default.\n"
+"-------------------------------------------------------------------------------\n"
+"<space>                 Display next k lines of bytes [current screen size]\n"
+"z                       Display next k lines of bytes [current screen size]*\n"
+"<return>                Display next k lines of bytes [1]*\n"
+"d or ctrl-D             Scroll k lines [current scroll size, initially 11]*\n"
+"q or Q or <interrupt>   Exit from bmore\n"
+"s                       Skip forward k lines of bytes [1]\n"
+"f                       Skip forward k screenfuls of bytes [1]\n"
+"b or ctrl-B             Skip backwards k screenfuls of bytes [1]\n"
+"'                       Go to place where previous search started\n"
+"=                       Display current byte number\n"
+"/<regular expression>   Search for kth occurrence of ascii regular expr [1]\n"
+"\\<regular expression>   Search for kth occurrence of binary regular expr [1]\n"
+"n                       Search for kth occurrence of last r.e [1]\n"
+"!<cmd> or :!<cmd>       Execute <cmd> in a subshell\n"
+"v                       Start up bvi at current position\n"
+"w                       Start up bvi reading only a screenful of bytes [screen]\n"
+"ctrl-L                  Redraw screen\n"
+":n                      Go to kth next file [1]\n"
+":p                      Go to kth previous file [1]\n"
+":f                      Display current file name and byte position\n"
+".                       Repeat previous command\n"
+"-------------------------------------------------------------------------------\n";
+
+static void display_help();
 
 
 /* -a   ASCII mode
@@ -115,8 +140,6 @@ main(argc, argv)
 	int		d_line, r_line, z_line;
 	char	*poi;
 
-
-	strncpy(helppath, HELPFILE, MAXCMD - 1);
 
 #ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
@@ -465,14 +488,7 @@ main(argc, argv)
 					break;
 		case '?':
 		case 'h':
-					if ((help_file = fopen(helppath, "r")) == NULL) {
-						emsg("Can't open help file");
-						break;
-					}
-					while ((ch1 = getc(help_file)) != EOF)
-					    putchar(ch1);
-					fclose(help_file);
-					to_print = 0;
+                    display_help();
 					break;
 		case 'w':
 		case 'v':
@@ -933,4 +949,14 @@ emsg(s)
 void
 bmbeep() {
 	putchar(7);
+}
+
+static void
+display_help()
+{
+    for (const char* ptr = help; *ptr; ++ptr)
+    {
+        putchar(*ptr);
+    }
+    to_print = 0;
 }
