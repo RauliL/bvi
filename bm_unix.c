@@ -78,10 +78,6 @@ initterm()
 		tcsetattr(fileno(stdin), TCSADRAIN, &nstate);
 	}
 
-#ifdef DJGPP
-	maxx = 80;
-	maxy = 25;
-#else
 	if ((term = getenv("TERM")) == 0 || tgetent(buf, term) <= 0) {
 		printf("Dumb terminal\n");
 		maxx = 80;
@@ -95,7 +91,6 @@ initterm()
 	clear_sc = tgetstr("cl", &clearptr);
 	rev_start = tgetstr("so", &clearptr);
 	rev_end = tgetstr("se", &clearptr);
-#endif
 
 	no_intty = tcgetattr(fileno(stdin), &ostate);
 	tcgetattr(fileno(stderr), &ostate);
@@ -143,15 +138,12 @@ doshell(cmd)
 	char	*cmd;
 {
 	int	ret;
-#ifndef DJGPP
 	char	*getenv();
 	char	*shell;
 	char	cline[128];
-#endif
 
 	printf("\n");
 
-#ifndef DJGPP
 	if ((shell = getenv("SHELL")) == NULL) shell = "sh";
 	else if(strrchr(shell,'/')) shell=(char *)(strrchr(shell,'/')+1);
 
@@ -162,7 +154,6 @@ doshell(cmd)
 		sprintf(cline, "%s -c \"%s\"", shell, cmd);
 		cmd = cline;
 	}
-#endif
 
 	reset_tty();
 	ret = system(cmd);
@@ -177,50 +168,30 @@ doshell(cmd)
 void
 highlight()
 {
-#ifndef DJGPP
 	if (rev_start && rev_end)
 		tputs(rev_start, 1, putchr);
-#endif
 }
 
 
 void
 normal()
 {
-#ifndef DJGPP
 	if (rev_start && rev_end)
 		tputs(rev_end, 1, putchr);
-#endif
 }
 
 
 void
 clearscreen()
 {
-#ifdef DJGPP
-	/* if (!no_tty)
-	{
-		int	n;
-
-		for (n = 0; n < maxy; n++) {
-			cleartoeol();
-			printf("\n");
-		}
-	} */
-#else
 	tputs(clear_sc, 1, putchr);
-#endif
 }
 
 
 void
 home()
 {
-#ifdef DJGPP
-	if (!no_tty) printf("\r");
-#else
 	tputs(Home, 1, putchr);
-#endif
 }
 
 
@@ -228,15 +199,7 @@ home()
 void
 cleartoeol()
 {
-#ifdef DJGPP
-	int	n;
-
-	home();
-	if (!no_tty) for (n = 1; n < maxx; n++) printf(" ");
-	home();
-#else
 	tputs(erase_ln, 1, putchr);
-#endif
 }
 
 

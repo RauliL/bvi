@@ -38,22 +38,14 @@
 #include <sys/stat.h>
 #include <setjmp.h>
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-#	include "patchlev.h"
-#	include "dosconf.h"
-#   include <alloc.h>
-#	include <conio.h>
-#	include <bios.h>
+#include "patchlevel.h"
+#include "config.h"
+#include <unistd.h>
+#if defined(HAVE_NCURSES_H)
+#  include <ncurses.h>
 #else
-#	include "patchlevel.h"
-#	include "config.h"
-#	include <unistd.h>
-# if defined(HAVE_NCURSES_H)
-#   include <ncurses.h>
-# else
-#   include <curses.h>
-# endif 
-#endif
+#  include <curses.h>
+#endif 
 #include <term.h>
 
 
@@ -91,17 +83,8 @@
 #	define FALSE	0
 #endif
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-#	define ANSI
-#	define PTR		char huge *
-#	define off_t	long
-#   define DELIM	'\\'
-#   define  strncasecmp strnicmp
-#   define  strcasecmp	stricmp
-#else
-#	define PTR		char *
-#   define DELIM	'/'
-#endif
+#define PTR		char *
+#define DELIM	'/'
 
 #define MAXCMD	255
 #define BUFFER	1024
@@ -119,22 +102,6 @@ extern	int		no_tty, no_intty;
 
 
 
-#ifdef ANSI
-	void	initterm(void), set_tty(void), reset_tty(void);
-	void	cleartoeol(void), clearscreen(void), highlight(void);
-	void	normal(void), bmbeep(void), home(void), sig(void);
-	void	doshell(char *), emsg(char *);
-	void	do_next(int);
-	void	bmsearch(int);
-	void	pushback(int, char *);
-	int		open_file(void);
-	int		printout(int), rdline(int, char *);
-	int		nextchar(void), vgetc(void);
-	int     sbracket(int, char *, int);
-	int     bmregexec(char *);
-	int		ascii_comp(char *, char *), hex_comp(char *, char *);
-	void    putline(char *, int);
-#else
 	void	initterm(), set_tty(), reset_tty();
 	void	cleartoeol(), clearscreen(), highlight();
 	void	normal(), bmbeep(), home(), sig();
@@ -149,4 +116,3 @@ extern	int		no_tty, no_intty;
 	int     bmregexec();
 	int		ascii_comp(), hex_comp();
 	void    putline();
-#endif

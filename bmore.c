@@ -33,17 +33,9 @@
 #	include <locale.h>
 #endif
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-#	define PRINTF	cprintf
-#else
-#	define PRINTF	printf
+#define PRINTF	printf
 #ifndef HELPFILE
-#  ifdef DJGPP
-#	define HELPFILE "/dev/env/DJDIR/lib/bmore.help"
-#  else
-#	define HELPFILE "/usr/local/lib/bmore.help"
-#  endif
-#endif
+#  define HELPFILE "/usr/local/lib/bmore.help"
 #endif
 
 #include "bmore.h"
@@ -124,14 +116,7 @@ main(argc, argv)
 	char	*poi;
 
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-	strcpy(helppath, argv[0]);
-	poi = strrchr(helppath, '\\');
-	*poi = '\0';
-	strcat(helppath, "\\BMORE.HLP");
-#else
 	strncpy(helppath, HELPFILE, MAXCMD - 1);
-#endif
 
 #ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");

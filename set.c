@@ -56,9 +56,6 @@ struct	param	params[] = {
 	{ "wordlength",	"wl",		4,		"",	P_NUM },
 	{ "wrapscan",	"ws",		TRUE,	"",	P_BOOL },
 	{ "highlight",  "hl",       TRUE,   "", P_BOOL },
-#if defined(__MSDOS__) && !defined(DJGPP)
-	{ "color",		"co",		7,		"",	P_NUM  },
-#endif
 	{ "",			"",			0,		"",	0, }		/* end marker */
 
 };
@@ -123,14 +120,6 @@ doset(arg)
 				s = arg + strlen(s) + 1;
 				params[i].nvalue = strtoll(s, &s, 0);
 				params[i].flags |= P_CHANGED;
-#if defined(__MSDOS__) && !defined(DJGPP)
-				if (i == P_CO) {
-					textcolor(P(P_CO) & 0x07);
-					textbackground((P(P_CO) & 0xf0) >> 4);
-					clrscr();
-					repaint();
-				}
-#endif
 				if (i == P_CM) {
 					if (((COLS - AnzAdd - 1) / 4) >= P(P_CM)) {
 						Anzahl = P(P_CM);

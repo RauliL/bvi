@@ -41,19 +41,12 @@
 
 #define JOEHTG
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-#	include "patchlev.h"
-#	include "dosconf.h"
-#   include "doscur.h"
-#   include <alloc.h>
-#else
-#	include "patchlevel.h"
-#	include "config.h"
+#include "patchlevel.h"
+#include "config.h"
 #if defined(HAVE_NCURSES_H)
 #   include <ncurses.h>
 #else
 #   include <curses.h>
-#endif
 #endif
 
 /* defines for filemode */
@@ -115,19 +108,8 @@
 #	define FALSE	0
 #endif
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-#	define ANSI
-#	define PTR		char huge *
-#	define off_t	long
-#   define DELIM	'\\'
-#   define  strncasecmp strnicmp
-#   define  strcasecmp	stricmp
-#	define	memcpy	d_memcpy
-#	define	memmove	d_memmove
-#else
-#	define PTR		char *
-#   define DELIM	'/'
-#endif
+#define PTR		char *
+#define DELIM	'/'
 
 #define MAXCMD	255
 #define BUFFER	1024
@@ -195,56 +177,6 @@ extern  off_t   block_begin, block_end, block_size;
 #define	S_ISFIFO(m)	((m & 0170000) == 0010000)	/* fifo */
 #endif
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-	void	d_memcpy(PTR, PTR, off_t);
-	void	d_memmove(PTR, PTR, off_t);
-#endif
-
-#ifdef ANSI
-	off_t	alloc_buf(off_t, char **), yd_addr(void);
-	off_t	range(int);
-	void	do_dot(void), do_exit(void), do_shell(void), do_undo(void);
-	void	do_tilde(off_t), trunc_cur(void);
-	void	do_back(off_t, PTR), do_ins_chg(PTR, char *, int);
-	void	do_mark(int, PTR), badcmd(char *), movebyte(void);
-	void	docmdline(char *), do_over(PTR, off_t, PTR), do_put(PTR, off_t, PTR);
-	void	jmpproc(int), printline(PTR, int);
-	int		addfile(char *);
-	int		bregexec(PTR, char *);
-	int		chk_comm(int);
-	int		doecmd(char *, int);
-	int		do_append(off_t, char *), do_logic(int, char *);
-	int		do_delete(off_t, PTR);
-	int		doset(char *);
-	int		do_substitution(int, char *, PTR, PTR);
-	int		hexchar(void);
-	int		outmsg(char *);
-	PTR		searching(int, char *, PTR, PTR, int);
-	PTR		wordsearch(PTR, char);
-	PTR		backsearch(PTR, char);
-	PTR		fsearch(PTR, PTR, char *);
-	PTR		fsearch_end(PTR, PTR, char *, PTR *);
-	PTR		rsearch(PTR, PTR, char *);
-	PTR		end_word(PTR);
-	PTR		calc_addr(char **, PTR);
-	PTR		do_ft(int, int);
-	char	*patcpy(char *, char *, char);
-	void	setpage(PTR), msg(char *), emsg(char *), smsg(char *);
-	void	usage(void), bvi_init(char *), statpos(void), setcur(void);
-	void	showparms(int), toggle(void), scrolldown(int), scrollup(int);
-	void	fileinfo(char *);
-	void	clearstr(void), clear_marks(void), repaint(void), new_screen(void);
-	void	quit(void), sysemsg(char *), do_z(int), stuffin(char *);
-	off_t	edit(int), load(char *);
-	off_t	calc_size(char *);
-	int     ascii_comp(char *, char *), hex_comp(char *, char *);
-	int		cur_forw(int), cur_back(void);
-	int		lineout(void), save(char *, PTR, PTR, int);
-	int		at_least(char *, char *, int);
-	int		vgetc(void), xpos(void), enlarge(off_t);
-	int		getcmdstr(char *, int), read_rc(char *);
-	int		wait_return(int);
-#else
 	int		addfile();
 	off_t	alloc_buf(), yd_addr();
 	off_t	range();
@@ -288,4 +220,3 @@ extern  off_t   block_begin, block_end, block_size;
 	int		getcmdstr(), enlarge();
 	int		vgetc(), xpos();
 	int		wait_return();
-#endif

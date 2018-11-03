@@ -966,11 +966,7 @@ do_ins_chg(start, arg, mode)
 		break;
 	}
 mfree:
-#if defined(__MSDOS__) && !defined(DJGPP)
-	farfree(tempbuf);
-#else
 	free(tempbuf);
-#endif
 }
 
 

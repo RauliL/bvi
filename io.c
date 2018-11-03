@@ -335,15 +335,6 @@ bvi_init(dir)
 		return;
 	}
 	
-#ifdef DJGPP
-	strcpy(rcpath, "c:");
-	strcpy(rcpath, dir);
-	poi = strrchr(rcpath, '\\');
-	*poi = '\0';
-	strcat(rcpath, "\\BVI.RC");
-	read_rc(rcpath);
-	read_rc("BVI.RC");
-#else
 	strncpy(rcpath, getenv("HOME"), MAXCMD - 8);
 	rcpath[MAXCMD - 8] = '\0';
 	strcat(rcpath, "/.bvirc");
@@ -355,7 +346,6 @@ bvi_init(dir)
 	if (stat(rcpath, &buf) == 0) {
 		if (buf.st_uid == getuid())	read_rc(rcpath);
 	}
-#endif
 }
 
 
@@ -399,11 +389,7 @@ do_shell()
 
 	addch('\n');
 	savetty();
-#ifdef DJGPP
-	ret = system("");
-#else
 	ret = system(shell);
-#endif
 	resetty();
 }
 

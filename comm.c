@@ -43,15 +43,8 @@
 #	include <fcntl.h>
 #endif
 
-#if defined(__MSDOS__) && !defined(DJGPP)
-#   include <io.h>
-#	include <dir.h>
-#   define WRITE (O_WRONLY|O_CREAT|O_TRUNC|O_BINARY)
-#   define APPEND (O_WRONLY|O_APPEND|O_BINARY)
-#else
-#   define WRITE (O_WRONLY|O_CREAT|O_TRUNC)
-#   define APPEND (O_WRONLY|O_APPEND)
-#endif
+#define WRITE (O_WRONLY|O_CREAT|O_TRUNC)
+#define APPEND (O_WRONLY|O_APPEND)
 
 #define	CMDSZ	256		/* size of the command buffer */
 #define MAXNAME	10		/* size of a : command name */
