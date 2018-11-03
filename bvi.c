@@ -99,6 +99,8 @@ static	char	line[MAXCMD+1];
 static	int		mark;
 static	int		wrstat = 1;
 
+static void set_window_size();
+
 
 void
 usage()
@@ -253,39 +255,13 @@ main(argc, argv)
 	initscr();
 	attrset(A_NORMAL);
 
-	maxy = LINES;
-	if (params[P_LI].flags & P_CHANGED) maxy = P(P_LI);
-	P(P_SS) = maxy / 2;
-	P(P_LI) = maxy;
-	maxy--;
+    set_window_size();
+
 	keypad(stdscr, TRUE);
 	scrollok(stdscr, TRUE);
 	nonl();
 	cbreak();
 	noecho();
-
-	{
-       /* address column width */
-       /*  default is 8 + 2 blanks  */
-       /* if block_begin has 8 hex digits or more */
-       /* reserve 1 hex digit more than required  */
-       char tmp[sizeof(block_begin) * 2 + 3];
-       AnzAdd = sprintf(tmp, "%llX", (long long unsigned)block_begin) + 1;
-       if (AnzAdd < 8)
-           AnzAdd = 8;
-       if (AnzAdd > sizeof(block_begin) * 2)
-           AnzAdd = sizeof(block_begin) * 2;
-       sprintf(addr_form,  "%%0%dllX  ", AnzAdd);
-       AnzAdd = sprintf(tmp, addr_form, block_begin);
-	}
-
-	Anzahl = ((COLS - AnzAdd - 1) / 16) * 4;
-	P(P_CM) = Anzahl;
-	maxx = Anzahl * 4 + AnzAdd + 1;
-	Anzahl3 = Anzahl * 3;
-	statsize = 35;
-	status = Anzahl3 + Anzahl - statsize;
-	screen = Anzahl * (maxy - 1);
 
 	signal(SIGINT, SIG_IGN);
 	filesize = load(name);
@@ -637,6 +613,15 @@ main(argc, argv)
 						stuffin(rep_buf);
 					}
 					break;
+
+#if defined(HAVE_NCURSES_H)
+        case KEY_RESIZE:
+            set_window_size();
+            clear();
+            repaint();
+            break;
+#endif
+
 		default :
 			if P(P_MM) {
 				if (precount < 1) precount = 1;
@@ -1052,4 +1037,50 @@ range(ch)
 	}
 	beep();
 	return 0;
+}
+
+static void
+set_window_size()
+{
+    maxy = LINES;
+    if ((params[P_LI].flags & P_CHANGED))
+    {
+        maxy = P(P_LI);
+    }
+    P(P_SS) = maxy / 2;
+    P(P_LI) = maxy;
+    --maxy;
+
+    {
+        char tmp[sizeof(block_begin) * 2 + 3];
+
+        /* address column width */
+        /*  default is 8 + 2 blanks  */
+        /* if block_begin has 8 hex digits or more */
+        /* reserve 1 hex digit more than required  */
+        AnzAdd = snprintf(
+            tmp,
+            sizeof(tmp),
+            "%llX",
+            ((unsigned long long) block_begin) + 1
+        );
+        if (AnzAdd < 8)
+        {
+            AnzAdd = 8;
+        }
+        if (AnzAdd > sizeof(block_begin) * 2)
+        {
+            AnzAdd = sizeof(block_begin) * 2;
+        }
+        snprintf(addr_form, sizeof(addr_form), "%%0%dllX  ", AnzAdd);
+        AnzAdd = snprintf(tmp, sizeof(tmp), addr_form, block_begin);
+    }
+
+	Anzahl = ((COLS - AnzAdd - 1) / 16) * 4;
+	P(P_CM) = Anzahl;
+	maxx = Anzahl * 4 + AnzAdd + 1;
+	Anzahl3 = Anzahl * 3;
+	statsize = 35;
+	status = Anzahl3 + Anzahl - statsize;
+	screen = Anzahl * (maxy - 1);
 }
