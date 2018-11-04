@@ -33,8 +33,6 @@
 #	include <locale.h>
 #endif
 
-#define PRINTF	printf
-
 #include "bmore.h"
 
 char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
@@ -278,14 +276,14 @@ main(argc, argv)
 				}
 			}
 			highlight();
-			PRINTF("--More--");
+			printf("--More--");
 			if (prompt == 2) {
-				PRINTF("(Next file: %s)", name);
+				printf("(Next file: %s)", name);
 			} else if (!no_intty && filesize) {
-				PRINTF("(%d%%)", (int)((bytepos * 100) / filesize));
+				printf("(%d%%)", (int)((bytepos * 100) / filesize));
 			}
 
-			if (d_flag) PRINTF("[Press space to continue, 'q' to quit]");
+			if (d_flag) printf("[Press space to continue, 'q' to quit]");
 			normal();
 			fflush(stdout);
 		}
@@ -296,7 +294,7 @@ main(argc, argv)
 		}
 		*/
 		prompt = 1;
-		PRINTF("\r");
+		printf("\r");
 		while (ch >= '0' && ch <= '9') {
 			numarr[arrnum++] = ch;
 			ch = vgetc();
@@ -345,27 +343,27 @@ main(argc, argv)
 					case 'f':
 						prompt = 0;
 						if (!no_intty)
-							PRINTF("\"%s\" line %lu", name,
+							printf("\"%s\" line %lu", name,
 								(unsigned long)(bytepos - out_len));
 						else
-							PRINTF("[Not a file] line %lu",
+							printf("[Not a file] line %lu",
 								(unsigned long)(bytepos - out_len));
 						fflush(stdout);
 						break;
 					case 'n':
 						if (precount < 1) precount = 1;
 						do_next(precount);
-						PRINTF("\r");
+						printf("\r");
 						cleartoeol();
-						PRINTF("\n...Skipping to file %s\r\n\r\n", name);
+						printf("\n...Skipping to file %s\r\n\r\n", name);
 						prompt = 2;
 						break;
 					case 'p':
 						if (precount < 1) precount = 1;
 						do_next(-precount);
-						PRINTF("\r");
+						printf("\r");
 						cleartoeol();
-						PRINTF("\n...Skipping back to file %s\r\n\r\n", name);
+						printf("\n...Skipping back to file %s\r\n\r\n", name);
 						prompt = 2;
 						break;
 					case 'q':
@@ -379,7 +377,7 @@ main(argc, argv)
 							cleartoeol();
 							if (rdline(colon, estring)) break;
 							doshell(estring);
-							PRINTF("------------------------\r\n");
+							printf("------------------------\r\n");
 							break;
 						}
 					default:
@@ -391,7 +389,7 @@ main(argc, argv)
 				cleartoeol();
 				if (rdline(ch, estring)) break;
 				doshell(estring);
-				PRINTF("------------------------\r\n");
+				printf("------------------------\r\n");
 				break;
 			}
 		case 'd':	/* Scroll k lines [current scroll size, initially 11]* */
@@ -415,11 +413,11 @@ main(argc, argv)
 						bmbeep();
 					} else {
 						if (precount < 1) precount = 1;
-						PRINTF("...back %ld page", precount);
+						printf("...back %ld page", precount);
 						if (precount > 1) {
-							PRINTF("s\r\n");
+							printf("s\r\n");
 						} else {
-							PRINTF("\r\n");
+							printf("\r\n");
 						}
 						screen_home -= (maxy + 1) * out_len;
 						if (screen_home < 0) screen_home = 0;
@@ -438,11 +436,11 @@ main(argc, argv)
 					}
 					putchar('\r');
 					cleartoeol();
-					PRINTF("\n...skipping %ld line", count);
+					printf("\n...skipping %ld line", count);
 					if (count > 1) {
-						PRINTF("s\r\n\r\n");
+						printf("s\r\n\r\n");
 					} else {
-						PRINTF("\r\n\r\n");
+						printf("\r\n\r\n");
 					}
 					screen_home += (count + maxy) * out_len;
 					fseeko(curr_file, screen_home, SEEK_SET);
@@ -474,15 +472,15 @@ main(argc, argv)
 						fseeko(curr_file, bytepos, SEEK_SET);
 						screen_home = bytepos;
 						to_print = maxy;
-						PRINTF("\r");
+						printf("\r");
 						cleartoeol();
-						PRINTF("\n\r\n***Back***\r\n\r\n");
+						printf("\n\r\n***Back***\r\n\r\n");
 					}
 					break;
 		case '=':
 					prompt = 0;
 					cleartoeol();
-					PRINTF("%lX hex  %lu dec", (unsigned long)bytepos,
+					printf("%lX hex  %lu dec", (unsigned long)bytepos,
 						(unsigned long)bytepos);
 					fflush(stdout);
 					break;
@@ -548,7 +546,7 @@ rdline(ch, sstring)
 		} else if (ch1 == 8) {
 			if (i) {
 				sstring[--i] = '\0';
-				PRINTF("\r%c%s", ch, sstring);
+				printf("\r%c%s", ch, sstring);
 				cleartoeol();
 			} else {
 				ch1 = ESC;
@@ -560,7 +558,7 @@ rdline(ch, sstring)
 				return 1;
 			}
 			putchar(ch1);
-			PRINTF("\r%c%s", ch, bstring);
+			printf("\r%c%s", ch, bstring);
 			strcat(sstring, bstring);
 			i = strlen(sstring);
 		} else {
@@ -635,11 +633,11 @@ putline(buf, num)
 	int			print_pos;
 	unsigned	char	ch;
 
-	PRINTF(addr_form, (unsigned long)bytepos);
+	printf(addr_form, (unsigned long)bytepos);
 	for (print_pos = 0; print_pos < num; print_pos++) {
 		ch = buf[print_pos];
 		if (!ascii_flag) {
-		    PRINTF("%02X ", ch);
+		    printf("%02X ", ch);
 		}
 		++bytepos;
 		if ((ch > 31) && (ch < 127))
@@ -649,14 +647,14 @@ putline(buf, num)
 	}
 	for (; print_pos < out_len; print_pos++) {
 		if (!ascii_flag) {
-		    PRINTF("   ");
+		    printf("   ");
 		}
 		++bytepos;
 		*(string + print_pos) = ' ';
 	}
 	*(string + num) = '\0';
-	if (no_tty) PRINTF("%s\n", string);
-	else PRINTF("%s\r\n", string);
+	if (no_tty) printf("%s\n", string);
+	else printf("%s\r\n", string);
 }
 
 
@@ -673,11 +671,11 @@ printout(lns)
 	}
 	if (do_header) {
 		if (no_tty) {
-			PRINTF("::::::::::::::\n%s\n::::::::::::::\n", name);
+			printf("::::::::::::::\n%s\n::::::::::::::\n", name);
 		} else {
-			PRINTF("\r");
+			printf("\r");
 			cleartoeol();
-			PRINTF("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name);
+			printf("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name);
 		}
 		do_header = 0;
 		corr = 2;
@@ -698,7 +696,7 @@ printout(lns)
 		} else {
 			if (flag) {
 				cleartoeol();
-				PRINTF("*\r\n");
+				printf("*\r\n");
 				lns--;
 			} else {
 				doub++;
@@ -908,7 +906,7 @@ bmsearch(ch)
 			to_print = maxy;
 		} else {		/* i == -1 -> EOF */
 			if (no_intty) {
-				PRINTF("\r\nPattern not found\r\n");
+				printf("\r\nPattern not found\r\n");
 				do_next(1);
 			} else {
 /*
@@ -927,7 +925,7 @@ emsg(string);
 		}
 	}
 	if (prompt) {
-		PRINTF("\r\n...skipping\r\n");
+		printf("\r\n...skipping\r\n");
 	}
 }
 
@@ -939,7 +937,7 @@ emsg(s)
 	putchar('\r');
 	cleartoeol();
 	highlight();
-	PRINTF("%s", s);
+	printf("%s", s);
 	normal();
 	fflush(stdout);
 	prompt = 0;
