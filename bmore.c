@@ -947,7 +947,9 @@ bmbeep() {
 static void
 display_help()
 {
-    for (const char* ptr = help; *ptr; ++ptr)
+    const char* ptr;
+
+    for (ptr = help; *ptr; ++ptr)
     {
         putchar(*ptr);
     }
