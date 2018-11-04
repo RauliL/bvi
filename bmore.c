@@ -28,10 +28,7 @@
 
 
 #include <sys/types.h>
-
-#ifdef HAVE_LOCALE_H
-#	include <locale.h>
-#endif
+#include <locale.h>
 
 #include "bmore.h"
 
@@ -139,9 +136,7 @@ main(argc, argv)
 	char	*poi;
 
 
-#ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
-#endif
 
 	poi = strrchr(argv[0], DELIM);
  

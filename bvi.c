@@ -32,13 +32,11 @@
  */
 
 #include <sys/types.h>
+#include <locale.h>
 
 #include "bvi.h"
 #include "set.h"
 
-#ifdef HAVE_LOCALE_H
-#	include <locale.h>
-#endif
 
 
 char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
@@ -129,9 +127,7 @@ main(argc, argv)
 
 
 
-#ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
-#endif
 	poi = strrchr(argv[0], DELIM);
 
 	if (poi) strncpy(progname, ++poi, 7);
