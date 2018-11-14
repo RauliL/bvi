@@ -36,97 +36,110 @@
 struct termios ostate, nstate;
 
 
-char	*rev_start, *rev_end;	/* enter and exit standout mode */
-char	*Home;			/* go to home */
-char	*clear_sc;		/* clear screen */
-char	*erase_ln;		/* erase line */
+char*  rev_start, *rev_end; /* enter and exit standout mode */
+char*  Home;      /* go to home */
+char*  clear_sc;    /* clear screen */
+char*  erase_ln;    /* erase line */
 
-extern	off_t	bytepos, screen_home;
-extern	FILE	*curr_file;
+extern  off_t bytepos, screen_home;
+extern  FILE*  curr_file;
 
-int		got_int;
+int   got_int;
 int     fnum, no_intty, no_tty, slow_tty;
 int     dum_opt, dlines;
 
 int
 putchr(ch)
-	int ch;
-{return putchar(ch);}
+int ch;
+{
+  return putchar(ch);
+}
 
 
 void
 initterm()
 {
-	char        buf[TBUFSIZ];
-	static char clearbuf[TBUFSIZ];
-	char        *term;
-	char        *clearptr;
+  char        buf[TBUFSIZ];
+  static char clearbuf[TBUFSIZ];
+  char*        term;
+  char*        clearptr;
 
-	struct  termios nstate;
+  struct  termios nstate;
 
-	no_tty = tcgetattr(fileno(stdout), &ostate);
-	if (!no_tty) {
-		nstate = ostate;
-		/*
-		 * is this really necessary??
-		 *
-		nstate.c_lflag &= ~(ICANON|ECHO|ECHOE|ECHONL);
-		 */
-		nstate.c_lflag &= ~(ICANON|ECHO|ECHOE|ECHONL);
-		nstate.c_cc[VMIN] = 1;
-		nstate.c_cc[VTIME] = 0;
-		tcsetattr(fileno(stdin), TCSADRAIN, &nstate);
-	}
+  no_tty = tcgetattr(fileno(stdout), &ostate);
+  if (!no_tty)
+  {
+    nstate = ostate;
+    /*
+     * is this really necessary??
+     *
+    nstate.c_lflag &= ~(ICANON|ECHO|ECHOE|ECHONL);
+     */
+    nstate.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHONL);
+    nstate.c_cc[VMIN] = 1;
+    nstate.c_cc[VTIME] = 0;
+    tcsetattr(fileno(stdin), TCSADRAIN, &nstate);
+  }
 
-	if ((term = getenv("TERM")) == 0 || tgetent(buf, term) <= 0) {
-		printf("Dumb terminal\n");
-		maxx = 80;
-		maxy = 24;
-	} else {
-		maxy = tgetnum("li");
-		maxx = tgetnum("co");
-	}
-	clearptr = clearbuf;
-	erase_ln = tgetstr("ce", &clearptr);
-	clear_sc = tgetstr("cl", &clearptr);
-	rev_start = tgetstr("so", &clearptr);
-	rev_end = tgetstr("se", &clearptr);
+  if ((term = getenv("TERM")) == 0 || tgetent(buf, term) <= 0)
+  {
+    printf("Dumb terminal\n");
+    maxx = 80;
+    maxy = 24;
+  }
+  else
+  {
+    maxy = tgetnum("li");
+    maxx = tgetnum("co");
+  }
+  clearptr = clearbuf;
+  erase_ln = tgetstr("ce", &clearptr);
+  clear_sc = tgetstr("cl", &clearptr);
+  rev_start = tgetstr("so", &clearptr);
+  rev_end = tgetstr("se", &clearptr);
 
-	no_intty = tcgetattr(fileno(stdin), &ostate);
-	tcgetattr(fileno(stderr), &ostate);
-	  
-	nstate = ostate;
-	if (!no_tty) {
-		ostate.c_lflag &= ~(ICANON|ECHO);
-	}
+  no_intty = tcgetattr(fileno(stdin), &ostate);
+  tcgetattr(fileno(stderr), &ostate);
+
+  nstate = ostate;
+  if (!no_tty)
+  {
+    ostate.c_lflag &= ~(ICANON | ECHO);
+  }
 }
 
 
 void
 set_tty()
 {
-	if (no_tty) return;
-	ostate.c_lflag &= ~(ICANON|ECHO);
-	stty(fileno(stderr), &ostate);
+  if (no_tty)
+  {
+    return;
+  }
+  ostate.c_lflag &= ~(ICANON | ECHO);
+  stty(fileno(stderr), &ostate);
 }
 
 
 void
 reset_tty()
 {
-	if (no_tty) return;
-	ostate.c_lflag |= ICANON|ECHO;
-	stty(fileno(stderr), &ostate);
+  if (no_tty)
+  {
+    return;
+  }
+  ostate.c_lflag |= ICANON | ECHO;
+  stty(fileno(stderr), &ostate);
 }
 
 
 void
 sig(sig)
-	int sig;
+int sig;
 {
-	reset_tty();
-	printf("\r\n");
-	exit(0);
+  reset_tty();
+  printf("\r\n");
+  exit(0);
 }
 
 
@@ -135,63 +148,76 @@ sig(sig)
  */
 void
 doshell(cmd)
-	char	*cmd;
+char*  cmd;
 {
-	int	ret;
-	char	*getenv();
-	char	*shell;
-	char	cline[128];
+  int ret;
+  char*  getenv();
+  char*  shell;
+  char  cline[128];
 
-	printf("\n");
+  printf("\n");
 
-	if ((shell = getenv("SHELL")) == NULL) shell = "sh";
-	else if(strrchr(shell,'/')) shell=(char *)(strrchr(shell,'/')+1);
+  if ((shell = getenv("SHELL")) == NULL)
+  {
+    shell = "sh";
+  }
+  else if (strrchr(shell, '/'))
+  {
+    shell = (char*)(strrchr(shell, '/') + 1);
+  }
 
-	if (cmd[0] == '\0') {
-		sprintf(cline, "%s -i", shell);
-		cmd = cline;
-	} else {
-		sprintf(cline, "%s -c \"%s\"", shell, cmd);
-		cmd = cline;
-	}
+  if (cmd[0] == '\0')
+  {
+    sprintf(cline, "%s -i", shell);
+    cmd = cline;
+  }
+  else
+  {
+    sprintf(cline, "%s -c \"%s\"", shell, cmd);
+    cmd = cline;
+  }
 
-	reset_tty();
-	ret = system(cmd);
-	set_tty();
-	printf("\r");
-	home();
-	fseeko(curr_file, screen_home, SEEK_SET);
-	bytepos = screen_home;
+  reset_tty();
+  ret = system(cmd);
+  set_tty();
+  printf("\r");
+  home();
+  fseeko(curr_file, screen_home, SEEK_SET);
+  bytepos = screen_home;
 }
 
 
 void
 highlight()
 {
-	if (rev_start && rev_end)
-		tputs(rev_start, 1, putchr);
+  if (rev_start && rev_end)
+  {
+    tputs(rev_start, 1, putchr);
+  }
 }
 
 
 void
 normal()
 {
-	if (rev_start && rev_end)
-		tputs(rev_end, 1, putchr);
+  if (rev_start && rev_end)
+  {
+    tputs(rev_end, 1, putchr);
+  }
 }
 
 
 void
 clearscreen()
 {
-	tputs(clear_sc, 1, putchr);
+  tputs(clear_sc, 1, putchr);
 }
 
 
 void
 home()
 {
-	tputs(Home, 1, putchr);
+  tputs(Home, 1, putchr);
 }
 
 
@@ -199,20 +225,23 @@ home()
 void
 cleartoeol()
 {
-	tputs(erase_ln, 1, putchr);
+  tputs(erase_ln, 1, putchr);
 }
 
 
 int
 vgetc()
 {
-    char cha;
-    extern int errno;
+  char cha;
+  extern int errno;
 
-    errno = 0;
-    if (read(2, &cha, 1) <= 0) {
-        if (errno != EINTR)
-            exit(2);
+  errno = 0;
+  if (read(2, &cha, 1) <= 0)
+  {
+    if (errno != EINTR)
+    {
+      exit(2);
     }
-    return (cha);
+  }
+  return (cha);
 }

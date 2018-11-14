@@ -42,400 +42,505 @@
 #endif
 
 #include <limits.h>
-#	ifndef OFF_T_MAX
-#  		define OFF_T_MAX    ULONG_LONG_MAX
-#	endif
+# ifndef OFF_T_MAX
+#     define OFF_T_MAX    ULONG_LONG_MAX
+# endif
 
 #ifdef HAVE_UNISTD_H
-#	include <unistd.h>
+# include <unistd.h>
 #endif
 
 #ifdef HAVE_FCNTL_H
-#	include <fcntl.h>
+# include <fcntl.h>
 #endif
 
-int		filemode;
-static	struct	stat	buf;
-static	off_t	block_read;
-char	*terminal;
+int   filemode;
+static  struct  stat  buf;
+static  off_t block_read;
+char*  terminal;
 
 
 /*********** Save the patched file ********************/
 int
 save(fname, start, end, flags)
-	char	*fname;
-	char	*start;
-	char	*end;
-	int		flags;
+char*  fname;
+char*  start;
+char*  end;
+int   flags;
 {
-	int		fd;
-	char	*string;
-	char	*newstr;
-	off_t	filesize;
+  int   fd;
+  char*  string;
+  char*  newstr;
+  off_t filesize;
 
-	if (!fname) {
-		emsg("No file|No current filename");
-		return 0;
-	}
-	string = malloc((size_t)strlen(fname) + MAXCMD);
-	if (string == NULL) {
-		emsg("Out of memory");
-		return 0;
-	}
-	if (stat(fname, &buf) == -1) {
-		newstr = "[New file] ";
-	} else {
-		if (S_ISDIR(buf.st_mode)) {
-			sprintf(string, "\"%s\" Is a directory", fname);
-			msg(string);
-			free(string);
-			return 0;
-		} else if (S_ISCHR(buf.st_mode)) {
-			sprintf(string, "\"%s\" Character special file", fname);
-			msg(string);
-			free(string);
-			return 0;
-		} else if (S_ISBLK(buf.st_mode)) {
-			/*
-			sprintf(string, "\"%s\" Block special file", fname);
-			msg(string);
-			return 0;
-			*/
-		}
-		newstr = "";
-	}
+  if (!fname)
+  {
+    emsg("No file|No current filename");
+    return 0;
+  }
+  string = malloc((size_t)strlen(fname) + MAXCMD);
+  if (string == NULL)
+  {
+    emsg("Out of memory");
+    return 0;
+  }
+  if (stat(fname, &buf) == -1)
+  {
+    newstr = "[New file] ";
+  }
+  else
+  {
+    if (S_ISDIR(buf.st_mode))
+    {
+      sprintf(string, "\"%s\" Is a directory", fname);
+      msg(string);
+      free(string);
+      return 0;
+    }
+    else if (S_ISCHR(buf.st_mode))
+    {
+      sprintf(string, "\"%s\" Character special file", fname);
+      msg(string);
+      free(string);
+      return 0;
+    }
+    else if (S_ISBLK(buf.st_mode))
+    {
+      /*
+      sprintf(string, "\"%s\" Block special file", fname);
+      msg(string);
+      return 0;
+      */
+    }
+    newstr = "";
+  }
 
-	if (filemode == PARTIAL) flags = O_RDWR;
-	if ((fd = open(fname, flags, 0666)) < 0) {
+  if (filemode == PARTIAL)
+  {
+    flags = O_RDWR;
+  }
+  if ((fd = open(fname, flags, 0666)) < 0)
+  {
+    sysemsg(fname);
+    free(string);
+    return 0;
+  }
+  if (filemode == PARTIAL)
+  {
+    if (block_read)
+    {
+      filesize = block_read;
+      sprintf(string, "\"%s\" range %llu-%llu", fname,
+              (unsigned long long)block_begin,
+              (unsigned long long)(block_begin - 1 + filesize));
+      if (lseek(fd, block_begin, SEEK_SET) < 0)
+      {
         sysemsg(fname);
-		free(string);
-		return 0;
-	}
-	if (filemode == PARTIAL) {
-		if (block_read) {
-			filesize = block_read;
-			sprintf(string, "\"%s\" range %llu-%llu", fname,
-				(unsigned long long)block_begin,
-				(unsigned long long)(block_begin - 1 + filesize));
-			if (lseek(fd, block_begin, SEEK_SET) < 0) {
-				sysemsg(fname);
-				free(string);
-				return 0;
-			}
-		} else {
-			msg("Null range");
-			free(string);
-			return 0;
-        }
-	} else {
-		filesize = end - start + 1L;
+        free(string);
+        return 0;
+      }
+    }
+    else
+    {
+      msg("Null range");
+      free(string);
+      return 0;
+    }
+  }
+  else
+  {
+    filesize = end - start + 1L;
 
-		sprintf(string, "\"%s\" %s%llu bytes", fname, newstr,
-			(unsigned long long)filesize);
-	}
+    sprintf(string, "\"%s\" %s%llu bytes", fname, newstr,
+            (unsigned long long)filesize);
+  }
 
-	if (write(fd, start, filesize) != filesize) {
-		sysemsg(fname);
-		free(string);
-		close(fd);
-		return 0;
-	}
-	close(fd);
-	edits = 0;
-	msg(string);
-	free(string);
-	return 1;
+  if (write(fd, start, filesize) != filesize)
+  {
+    sysemsg(fname);
+    free(string);
+    close(fd);
+    return 0;
+  }
+  close(fd);
+  edits = 0;
+  msg(string);
+  free(string);
+  return 1;
 }
 
 
 /* loads a file, returns the filesize */
 off_t
 load(fname)
-	char	*fname;
+char*  fname;
 {
-	int		fd = -1;
-	char	*string;
+  int   fd = -1;
+  char*  string;
 
-	buf.st_size = 0L;
-	if (fname != NULL) {
-		/*
-		sprintf(string, "\"%s\"", fname);
-		msg(string);
-		refresh();
-		*/
-		if (stat(fname, &buf) == -1) {
-		/* check for EOVERFLOW       75              */
-		/* Value too large for defined data type     */
-		/* means bvi is compiled without lfs support */
-			if (errno == ENOENT) {
-				filemode = NEW;
-			} else {
-				move(maxy, 0);
-				endwin();
-				perror(fname);
-				exit(0);
-			}
-		/*
-		} else if (S_ISDIR(buf.st_mode)) {
-			filemode = DIRECTORY;
-		*/
-		} else if (S_ISCHR(buf.st_mode)) {
-			filemode = CHARACTER_SPECIAL;
-		} else if (S_ISBLK(buf.st_mode)) {
-			filemode = BLOCK_SPECIAL;
-			if (!block_flag) {
-				block_flag = 1;
-				block_begin = 0;
-				block_size = 1024;
-				block_end = block_begin + block_size - 1;
-			}
-			if ((fd = open(fname, O_RDONLY)) > 0) {
-				P(P_RO) = TRUE;
-				params[P_RO].flags |= P_CHANGED;
-			} else {
-				sysemsg(fname);
-				filemode = ERROR;
-			}
-		} else if (S_ISREG(buf.st_mode) || S_ISDIR(buf.st_mode)) {
+  buf.st_size = 0L;
+  if (fname != NULL)
+  {
+    /*
+    sprintf(string, "\"%s\"", fname);
+    msg(string);
+    refresh();
+    */
+    if (stat(fname, &buf) == -1)
+    {
+      /* check for EOVERFLOW       75              */
+      /* Value too large for defined data type     */
+      /* means bvi is compiled without lfs support */
+      if (errno == ENOENT)
+      {
+        filemode = NEW;
+      }
+      else
+      {
+        move(maxy, 0);
+        endwin();
+        perror(fname);
+        exit(0);
+      }
+      /*
+      } else if (S_ISDIR(buf.st_mode)) {
+        filemode = DIRECTORY;
+      */
+    }
+    else if (S_ISCHR(buf.st_mode))
+    {
+      filemode = CHARACTER_SPECIAL;
+    }
+    else if (S_ISBLK(buf.st_mode))
+    {
+      filemode = BLOCK_SPECIAL;
+      if (!block_flag)
+      {
+        block_flag = 1;
+        block_begin = 0;
+        block_size = 1024;
+        block_end = block_begin + block_size - 1;
+      }
+      if ((fd = open(fname, O_RDONLY)) > 0)
+      {
+        P(P_RO) = TRUE;
+        params[P_RO].flags |= P_CHANGED;
+      }
+      else
+      {
+        sysemsg(fname);
+        filemode = ERROR;
+      }
+    }
+    else if (S_ISREG(buf.st_mode) || S_ISDIR(buf.st_mode))
+    {
 #if 0
-           /* stat() call above will fail if file is too large */
-           /* this size check will never fail                  */
-           if ((unsigned long long)buf.st_size > (unsigned long long)OFF_T_MAX) {
-				move(maxy, 0);
-				endwin();
-				printf("File too large\n");
-				exit(0);
-			}
+      /* stat() call above will fail if file is too large */
+      /* this size check will never fail                  */
+      if ((unsigned long long)buf.st_size > (unsigned long long)OFF_T_MAX)
+      {
+        move(maxy, 0);
+        endwin();
+        printf("File too large\n");
+        exit(0);
+      }
 #endif
-			if ((fd = open(fname, O_RDONLY)) > 0) {
-				if (S_ISREG(buf.st_mode)) {
-					filemode = REGULAR;
-				} else {
-					filemode = DIRECTORY;
-				}
-				if (access(fname, W_OK)) {
-					P(P_RO) = TRUE;
-					params[P_RO].flags |= P_CHANGED;
-				}
-			} else {
-	            sysemsg(fname);
-				filemode = ERROR;
-			}
-		}
-	} else {
-		filemode = NEW;
-	}
-	if (mem != NULL) free(mem);
-	memsize = 1024;
-	if (block_flag) {
-		if (block_flag == BLOCK_BEGIN) {
-			block_size = buf.st_size - block_begin;
-		}
-		memsize += block_size;
-	} else if (filemode == REGULAR) {
-		memsize += buf.st_size;
-	}
-	if ((mem = (char *)malloc(memsize)) == NULL) {
-		move(maxy, 0);
-		endwin();
-		printf("Out of memory\n");
-		exit(0);
-	}
-	clear_marks();
+      if ((fd = open(fname, O_RDONLY)) > 0)
+      {
+        if (S_ISREG(buf.st_mode))
+        {
+          filemode = REGULAR;
+        }
+        else
+        {
+          filemode = DIRECTORY;
+        }
+        if (access(fname, W_OK))
+        {
+          P(P_RO) = TRUE;
+          params[P_RO].flags |= P_CHANGED;
+        }
+      }
+      else
+      {
+        sysemsg(fname);
+        filemode = ERROR;
+      }
+    }
+  }
+  else
+  {
+    filemode = NEW;
+  }
+  if (mem != NULL)
+  {
+    free(mem);
+  }
+  memsize = 1024;
+  if (block_flag)
+  {
+    if (block_flag == BLOCK_BEGIN)
+    {
+      block_size = buf.st_size - block_begin;
+    }
+    memsize += block_size;
+  }
+  else if (filemode == REGULAR)
+  {
+    memsize += buf.st_size;
+  }
+  if ((mem = (char*)malloc(memsize)) == NULL)
+  {
+    move(maxy, 0);
+    endwin();
+    printf("Out of memory\n");
+    exit(0);
+  }
+  clear_marks();
 
-	if (fname != NULL) {
-		string = malloc((size_t)strlen(fname) + MAXCMD);
-	} else {
-		string = malloc(MAXCMD);
-	}
-	if (string == NULL) {
-		emsg("Out of memory");
-		return 0;
-	}
+  if (fname != NULL)
+  {
+    string = malloc((size_t)strlen(fname) + MAXCMD);
+  }
+  else
+  {
+    string = malloc(MAXCMD);
+  }
+  if (string == NULL)
+  {
+    emsg("Out of memory");
+    return 0;
+  }
 
-	if (block_flag && ((filemode == REGULAR) || (filemode == BLOCK_SPECIAL))) {
-		if (lseek(fd, block_begin, SEEK_SET) < 0) {
-			sysemsg(fname);
-			filemode = ERROR;
-		} else {
-			if ((filesize = read(fd, mem, block_size)) == 0) {
-				sprintf(string, "\"%s\" Empty file", fname);
-				filemode = ERROR;
-			} else {
-				sprintf(string, "\"%s\" range %llu-%llu", fname,
-					(unsigned long long)block_begin,
-					(unsigned long long)(block_begin + filesize - 1));
-				filemode = PARTIAL;
-				block_read = filesize;
-				P(P_OF) = block_begin;
-				params[P_OF].flags |= P_CHANGED;
-			}
-			msg(string);
-			refresh();
-		}
-	} else if ((filemode == REGULAR) || (filemode == DIRECTORY)) {
-		filesize = buf.st_size;
-		if (read(fd, mem, filesize) != filesize) {
-            sysemsg(fname);
-			filemode = ERROR;
-		}
-	} else {
-		filesize = 0L;
-	}
-	if (fd > 0) close(fd);
-	if (fname != NULL) {
-		switch (filemode) {
-		case NEW:
-			sprintf(string, "\"%s\" [New File]", fname);
-			break;
-		case REGULAR:
-			sprintf(string, "\"%s\" %s%llu bytes", fname,
-				P(P_RO) ? "[Read only] " : "",
-				(unsigned long long)filesize);
-			break;
-		case DIRECTORY:
-			sprintf(string, "\"%s\" Directory", fname);
-			break;
-		case CHARACTER_SPECIAL:
-			sprintf(string, "\"%s\" Character special file", fname);
-			break;
-		case BLOCK_SPECIAL:
-			sprintf(string, "\"%s\" Block special file", fname);
-			break;
-		}
-		if (filemode != ERROR) msg(string);
-	}
-	pagepos = mem;
-	maxpos = mem + filesize;
-	loc = HEX;
-	x = AnzAdd; y = 0;
-	repaint();
-	free(string);
-	return(filesize);
+  if (block_flag && ((filemode == REGULAR) || (filemode == BLOCK_SPECIAL)))
+  {
+    if (lseek(fd, block_begin, SEEK_SET) < 0)
+    {
+      sysemsg(fname);
+      filemode = ERROR;
+    }
+    else
+    {
+      if ((filesize = read(fd, mem, block_size)) == 0)
+      {
+        sprintf(string, "\"%s\" Empty file", fname);
+        filemode = ERROR;
+      }
+      else
+      {
+        sprintf(string, "\"%s\" range %llu-%llu", fname,
+                (unsigned long long)block_begin,
+                (unsigned long long)(block_begin + filesize - 1));
+        filemode = PARTIAL;
+        block_read = filesize;
+        P(P_OF) = block_begin;
+        params[P_OF].flags |= P_CHANGED;
+      }
+      msg(string);
+      refresh();
+    }
+  }
+  else if ((filemode == REGULAR) || (filemode == DIRECTORY))
+  {
+    filesize = buf.st_size;
+    if (read(fd, mem, filesize) != filesize)
+    {
+      sysemsg(fname);
+      filemode = ERROR;
+    }
+  }
+  else
+  {
+    filesize = 0L;
+  }
+  if (fd > 0)
+  {
+    close(fd);
+  }
+  if (fname != NULL)
+  {
+    switch (filemode)
+    {
+    case NEW:
+      sprintf(string, "\"%s\" [New File]", fname);
+      break;
+    case REGULAR:
+      sprintf(string, "\"%s\" %s%llu bytes", fname,
+              P(P_RO) ? "[Read only] " : "",
+              (unsigned long long)filesize);
+      break;
+    case DIRECTORY:
+      sprintf(string, "\"%s\" Directory", fname);
+      break;
+    case CHARACTER_SPECIAL:
+      sprintf(string, "\"%s\" Character special file", fname);
+      break;
+    case BLOCK_SPECIAL:
+      sprintf(string, "\"%s\" Block special file", fname);
+      break;
+    }
+    if (filemode != ERROR)
+    {
+      msg(string);
+    }
+  }
+  pagepos = mem;
+  maxpos = mem + filesize;
+  loc = HEX;
+  x = AnzAdd;
+  y = 0;
+  repaint();
+  free(string);
+  return (filesize);
 }
 
 
-/* argument "dir" not used! 
+/* argument "dir" not used!
  * Needed for DOS version only
  */
 void
 bvi_init(dir)
-	char *dir;
+char* dir;
 {
-	char    *initstr;
-	char    rcpath[MAXCMD];
+  char*    initstr;
+  char    rcpath[MAXCMD];
 
-	terminal = getenv("TERM");
-	shell = getenv("SHELL");
-	if (shell == NULL || *shell == '\0')
-		shell = "/bin/sh";
+  terminal = getenv("TERM");
+  shell = getenv("SHELL");
+  if (shell == NULL || *shell == '\0')
+  {
+    shell = "/bin/sh";
+  }
 
-	if ((initstr = getenv("BVIINIT")) != NULL) {
-		docmdline(initstr);
-		return;
-	}
-	
-	strncpy(rcpath, getenv("HOME"), MAXCMD - 8);
-	rcpath[MAXCMD - 8] = '\0';
-	strcat(rcpath, "/.bvirc");
-	if (stat(rcpath, &buf) == 0) {
-		if (buf.st_uid == getuid()) read_rc(rcpath);
-	}
+  if ((initstr = getenv("BVIINIT")) != NULL)
+  {
+    docmdline(initstr);
+    return;
+  }
 
-	strcpy(rcpath, ".bvirc");
-	if (stat(rcpath, &buf) == 0) {
-		if (buf.st_uid == getuid())	read_rc(rcpath);
-	}
+  strncpy(rcpath, getenv("HOME"), MAXCMD - 8);
+  rcpath[MAXCMD - 8] = '\0';
+  strcat(rcpath, "/.bvirc");
+  if (stat(rcpath, &buf) == 0)
+  {
+    if (buf.st_uid == getuid())
+    {
+      read_rc(rcpath);
+    }
+  }
+
+  strcpy(rcpath, ".bvirc");
+  if (stat(rcpath, &buf) == 0)
+  {
+    if (buf.st_uid == getuid())
+    {
+      read_rc(rcpath);
+    }
+  }
 }
 
 
 int
 enlarge(add)
-	off_t	add;
+off_t add;
 {
-	char	*newmem;
-	off_t	savecur, savepag, savemax, saveundo;
+  char*  newmem;
+  off_t savecur, savepag, savemax, saveundo;
 
-	savecur = curpos - mem;
-	savepag = pagepos - mem;
-	savemax = maxpos - mem;
-	saveundo = undo_start - mem;
+  savecur = curpos - mem;
+  savepag = pagepos - mem;
+  savemax = maxpos - mem;
+  saveundo = undo_start - mem;
 
-	if (mem == NULL) {
-		newmem = malloc(memsize + add);
-	} else {
-		newmem = realloc(mem, memsize + add);
-	}
-	if (newmem == NULL) {
-		emsg("Out of memory");
-		return 1;
-	}
+  if (mem == NULL)
+  {
+    newmem = malloc(memsize + add);
+  }
+  else
+  {
+    newmem = realloc(mem, memsize + add);
+  }
+  if (newmem == NULL)
+  {
+    emsg("Out of memory");
+    return 1;
+  }
 
-	mem = newmem;
-	memsize += add;
-	curpos = mem + savecur;
-	pagepos = mem + savepag;
-	maxpos = mem + savemax;
-	undo_start = mem + saveundo;
-	current = curpos + 1L;
-	return 0;
+  mem = newmem;
+  memsize += add;
+  curpos = mem + savecur;
+  pagepos = mem + savepag;
+  maxpos = mem + savemax;
+  undo_start = mem + saveundo;
+  current = curpos + 1L;
+  return 0;
 }
 
 
 void
 do_shell()
 {
-	int ret;
+  int ret;
 
-	addch('\n');
-	savetty();
-	ret = system(shell);
-	resetty();
+  addch('\n');
+  savetty();
+  ret = system(shell);
+  resetty();
 }
 
 
 off_t
 alloc_buf(n, buffer)
-	off_t	n;
-	char	**buffer;
+off_t n;
+char**  buffer;
 {
-	if (*buffer == NULL) {
-		*buffer = (char *)malloc(n);
-	} else {
-		*buffer = (char *)realloc(*buffer, n);
-	}
-	if (*buffer == NULL) {
-		emsg("No buffer space available");
-		return 0L;
-	}
-	return n;
+  if (*buffer == NULL)
+  {
+    *buffer = (char*)malloc(n);
+  }
+  else
+  {
+    *buffer = (char*)realloc(*buffer, n);
+  }
+  if (*buffer == NULL)
+  {
+    emsg("No buffer space available");
+    return 0L;
+  }
+  return n;
 }
 
 
 int
 addfile(fname)
-	char	*fname;
+char*  fname;
 {
-	int		fd;
-	off_t	oldsize;
+  int   fd;
+  off_t oldsize;
 
-	if (stat(fname, &buf)) {
-		sysemsg(fname);
-		return 1;
-	}
-	if ((fd = open(fname, O_RDONLY)) == -1) {
-		sysemsg(fname);
-		return 1;
-	}
-	oldsize = filesize;
-	if (enlarge(buf.st_size)) return 1;
-	if (read(fd, mem + filesize, buf.st_size) == -1) {
-		sysemsg(fname);
-		return 1;
-	}
-	filesize += buf.st_size;
-	maxpos = mem + filesize;
-	close(fd);
-	setpage(mem + oldsize);
-	return 0;
+  if (stat(fname, &buf))
+  {
+    sysemsg(fname);
+    return 1;
+  }
+  if ((fd = open(fname, O_RDONLY)) == -1)
+  {
+    sysemsg(fname);
+    return 1;
+  }
+  oldsize = filesize;
+  if (enlarge(buf.st_size))
+  {
+    return 1;
+  }
+  if (read(fd, mem + filesize, buf.st_size) == -1)
+  {
+    sysemsg(fname);
+    return 1;
+  }
+  filesize += buf.st_size;
+  maxpos = mem + filesize;
+  close(fd);
+  setpage(mem + oldsize);
+  return 0;
 }

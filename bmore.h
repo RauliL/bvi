@@ -7,7 +7,7 @@
  * 1999-08-21  V 1.2.0 final
  * 2000-05-31  V 1.3.0 beta
  * 2000-10-04  V 1.3.0 final
- * 2002-01-16  V 1.3.1  
+ * 2002-01-16  V 1.3.1
  * 2003-02-20  V 1.3.2
  * 2010-03-28  V 1.3.4
  *
@@ -45,17 +45,17 @@
 #  include <ncurses.h>
 #else
 #  include <curses.h>
-#endif 
+#endif
 #include <term.h>
 
 
 /* defines for filemode */
-#define	ERROR				-1
-#define REGULAR				0
-#define NEW					1
-#define DIRECTORY			2
-#define CHARACTER_SPECIAL	3
-#define BLOCK_SPECIAL		4
+#define ERROR       -1
+#define REGULAR       0
+#define NEW         1
+#define DIRECTORY     2
+#define CHARACTER_SPECIAL 3
+#define BLOCK_SPECIAL   4
 #define PARTIAL             5
 
 /* regular expressions */
@@ -63,56 +63,56 @@
 #define ONE     1
 #define STAR    2
 
-#define ASCII		1
-#define FORWARD		0
-#define BACKWARD	1
-#define CR			'\r'
-#define NL			'\n'
-#define BS			8
-#define	ESC			27
-#define SEARCH		0
-#define REPLACE		1
-#define BVICTRL(n)		(n&0x1f)
+#define ASCII   1
+#define FORWARD   0
+#define BACKWARD  1
+#define CR      '\r'
+#define NL      '\n'
+#define BS      8
+#define ESC     27
+#define SEARCH    0
+#define REPLACE   1
+#define BVICTRL(n)    (n&0x1f)
 
 #ifndef NULL
-#	define NULL		((void *)0)
+# define NULL   ((void *)0)
 #endif
 
 #ifndef TRUE
-#	define TRUE		1
-#	define FALSE	0
+# define TRUE   1
+# define FALSE  0
 #endif
 
-#define PTR		char *
-#define DELIM	'/'
+#define PTR   char *
+#define DELIM '/'
 
-#define MAXCMD	255
-#define BUFFER	1024
+#define MAXCMD  255
+#define BUFFER  1024
 
 
 #ifdef DEBUG
-	extern FILE *debug_fp;
+extern FILE* debug_fp;
 #endif
 
-extern	char	*version;
-extern	int		maxx, maxy;
-extern	int		ignore_case, magic;
-extern	int		no_tty, no_intty;
+extern  char*  version;
+extern  int   maxx, maxy;
+extern  int   ignore_case, magic;
+extern  int   no_tty, no_intty;
 
 
 
 
-	void	initterm(), set_tty(), reset_tty();
-	void	cleartoeol(), clearscreen(), highlight();
-	void	normal(), bmbeep(), home(), sig();
-	void	doshell(), emsg();
-	void	do_next();
-	void	bmsearch();
-	void	pushback();
-	int		open_file();
-	int		printout(), rdline();
-	int		nextchar(), vgetc();
-	int     sbracket();
-	int     bmregexec();
-	int		ascii_comp(), hex_comp();
-	void    putline();
+void  initterm(), set_tty(), reset_tty();
+void  cleartoeol(), clearscreen(), highlight();
+void  normal(), bmbeep(), home(), sig();
+void  doshell(), emsg();
+void  do_next();
+void  bmsearch();
+void  pushback();
+int   open_file();
+int   printout(), rdline();
+int   nextchar(), vgetc();
+int     sbracket();
+int     bmregexec();
+int   ascii_comp(), hex_comp();
+void    putline();

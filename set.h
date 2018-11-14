@@ -28,20 +28,21 @@
  */
 
 
-struct	param {
-	char	*fullname;	/* full parameter name */
-	char	*shortname;	/* permissible abbreviation */
-	off_t	nvalue;
-	char	*svalue;
-	int		flags;
+struct  param
+{
+  char*  fullname;  /* full parameter name */
+  char*  shortname; /* permissible abbreviation */
+  off_t nvalue;
+  char*  svalue;
+  int   flags;
 };
 
-extern	struct	param	params[];
+extern  struct  param params[];
 
-#define	P_BOOL		0x01	/* the parameter is boolean */
-#define	P_NUM		0x02	/* the parameter is numeric */
-#define P_TEXT		0x04	/* the paameter is text */
-#define	P_CHANGED	0x08	/* the parameter has been changed */
+#define P_BOOL    0x01  /* the parameter is boolean */
+#define P_NUM   0x02  /* the parameter is numeric */
+#define P_TEXT    0x04  /* the paameter is text */
+#define P_CHANGED 0x08  /* the parameter has been changed */
 
 /*
  * The following are the indices in the params array for each parameter
@@ -50,26 +51,26 @@ extern	struct	param	params[];
 /*
  * parameters
  */
-#define	P_AW		0	/* Autowrite */
-#define P_CM		1	/* Columns */
-#define	P_EB		2	/* error bells */
-#define	P_IC		3	/* ignore case in searches */
-#define	P_MA		4	/* Magic characters in reg expr */
-#define P_MM		5	/* move bytes in file */
-#define	P_OF		6	/* address offset */
-#define P_RO		7	/* Readonly */
-#define	P_SS		8	/* scroll size */
-#define	P_MO		9	/* show mode */
-#define P_TT		10	/* Terminal type */
-#define P_TE		11	/* Terse (short messages) */
-#define P_US		12	/* Unix-Style of ASCII representation */
-#define	P_LI		13	/* lines */
-#define P_WL		14	/* Wordlength for w, W, b, B command */
-#define	P_WS		15	/* wrapscan */
-#define P_HL		16	/* highlight search enabled */
-#define	P_CO		17	/* color/attribute setting */
+#define P_AW    0 /* Autowrite */
+#define P_CM    1 /* Columns */
+#define P_EB    2 /* error bells */
+#define P_IC    3 /* ignore case in searches */
+#define P_MA    4 /* Magic characters in reg expr */
+#define P_MM    5 /* move bytes in file */
+#define P_OF    6 /* address offset */
+#define P_RO    7 /* Readonly */
+#define P_SS    8 /* scroll size */
+#define P_MO    9 /* show mode */
+#define P_TT    10  /* Terminal type */
+#define P_TE    11  /* Terse (short messages) */
+#define P_US    12  /* Unix-Style of ASCII representation */
+#define P_LI    13  /* lines */
+#define P_WL    14  /* Wordlength for w, W, b, B command */
+#define P_WS    15  /* wrapscan */
+#define P_HL    16  /* highlight search enabled */
+#define P_CO    17  /* color/attribute setting */
 
 /*
  * Macro to get the value of a parameter
  */
-#define	P(n)	(params[n].nvalue)
+#define P(n)  (params[n].nvalue)
