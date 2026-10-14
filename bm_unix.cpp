@@ -29,6 +29,9 @@
 #include "bmore.hpp"
 #include <termios.h>
 
+#include <format>
+#include <string>
+
 #define TBUFSIZ 1024
 
 #define stty(fd,argp)   tcsetattr(fd,TCSAFLUSH,argp)
@@ -138,7 +141,7 @@ doshell(const char *cmd)
 {
 	int	ret;
 	const char	*shell;
-	char	cline[128];
+	std::string	cline;
 
 	printf("\n");
 
@@ -146,15 +149,13 @@ doshell(const char *cmd)
 	else if(strrchr(shell,'/')) shell = strrchr(shell,'/')+1;
 
 	if (cmd[0] == '\0') {
-		sprintf(cline, "%s -i", shell);
-		cmd = cline;
+		cline = std::format("{} -i", shell);
 	} else {
-		sprintf(cline, "%s -c \"%s\"", shell, cmd);
-		cmd = cline;
+		cline = std::format("{} -c \"{}\"", shell, cmd);
 	}
 
 	reset_tty();
-	ret = system(cmd);
+	ret = system(cline.c_str());
 	set_tty();
 	printf("\r");
 	home();

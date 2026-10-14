@@ -31,6 +31,9 @@
 #include    "bvi.hpp"
 #include    "set.hpp"
 
+#include <format>
+#include <string>
+
 extern	long    precount;
 
 char contrd[][4] = {"NUL", " ^A", " ^B", " ^C", " ^D", " ^E", " ^F", "BEL",
@@ -719,40 +722,25 @@ void
 fileinfo(const char *fname)
 {
 	off_t	bytepos;
-	char	fstatus[MAXCMD];
-	char	*string;
+	std::string	status;
 
 	if (fname) {
-		string = static_cast<char*>(malloc((size_t)strlen(fname) + MAXCMD));
-		if (string == nullptr) {
-			emsg("Out of memory");
-			return;
-		}
-		sprintf(string, "\"%s\" ", fname);
+		status = std::format("{}{}{} ", '"', fname, '"');
 	} else {
-		string = static_cast<char*>(malloc(MAXCMD));
-		if (string == nullptr) {
-			emsg("Out of memory");
-			return;
-		}
-		strcpy(string, "No file ");
+		status = "No file ";
 	}
 	if (filemode != NEW && filemode != REGULAR)
-		strcat(string, "[Not edited] ");
-	if (B(P_RO)) strcat(string, "[Read only] ");
-	if (edits) strcat(string, "[Modified] ");
+		status += "[Not edited] ";
+	if (B(P_RO)) status += "[Read only] ";
+	if (edits) status += "[Modified] ";
 	if (filesize) {
 		bytepos = (pagepos + y * Anzahl + xpos()) - mem + 1L;
-		sprintf(fstatus, "byte %llu of %llu --%llu%%--", 
-			(unsigned long long)bytepos, 
-			(unsigned long long)filesize,
-			(unsigned long long)(bytepos * 100L / filesize));
-		strcat(string, fstatus);
+		status += std::format("byte {} of {} --{}%--",
+			bytepos, filesize, bytepos * 100L / filesize);
 	} else {
-		strcat(string, " 0 bytes");
+		status += " 0 bytes";
 	}
-	msg(string);
-	free(string);
+	msg(status.c_str());
 }
 
 
