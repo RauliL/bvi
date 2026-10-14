@@ -38,6 +38,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <csetjmp>
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -143,7 +144,7 @@ extern  PTR		curpos;
 extern	PTR		current;
 extern	PTR		start_addr;
 extern	PTR		end_addr;
-extern	char	*name;
+extern	std::filesystem::path	name;
 extern	std::string	cmdstr;
 extern	off_t	filesize, memsize;
 extern	PTR		markbuf[];
@@ -171,7 +172,7 @@ extern  off_t   block_begin, block_end, block_size;
 #define	S_ISFIFO(m)	((m & 0170000) == 0010000)	/* fifo */
 #endif
 
-int		addfile(const char *fname);
+int		addfile(const std::filesystem::path& fname);
 off_t	alloc_buf(off_t n, char **buffer);
 off_t	yd_addr();
 off_t	range(int ch);
@@ -222,7 +223,7 @@ void	showparms(bool all);
 void	toggle();
 void	scrolldown(int lns);
 void	scrollup(int lns);
-void	fileinfo(const char *fname);
+void	fileinfo(const std::filesystem::path& fname);
 void	clearstr();
 void	clear_marks();
 void	new_screen();
@@ -232,14 +233,14 @@ void	sysemsg(std::string_view s);
 void	do_z(int mode);
 void	stuffin(std::string_view s);
 off_t	edit(int mode);
-off_t	load(const char *fname);
+off_t	load(const std::filesystem::path& fname);
 int     ascii_comp(char *smem, const char *pattern);
 int     hex_comp(char *smem, const char *pattern);
 int		cur_forw(bool check);
 int		cur_back();
 int		lineout();
-int		save(const char *fname, const char *start, const char *end, int flags);
-int		read_rc(const char *fn);
+int		save(const std::filesystem::path& fname, const char *start, const char *end, int flags);
+int		read_rc(const std::filesystem::path& fn);
 int		getcmdstr(std::string& p, int x);
 int		enlarge(off_t add);
 int		vgetc();

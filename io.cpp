@@ -32,8 +32,10 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <filesystem>
 #include <format>
 #include <string>
+#include <system_error>
 
 #if 0
 /* nowadays (2009) we should make sure that bvi is compiled with LFS support: */
@@ -57,35 +59,56 @@
 #	include <fcntl.h>
 #endif
 
+namespace fs = std::filesystem;
+
 int		filemode;
-static	struct	stat	buf;
 static	off_t	block_read;
 const char	*terminal;
+
+/* POSIX ownership check is not available through std::filesystem. */
+static bool
+owned_by_self(const fs::path& path)
+{
+	struct stat st{};
+	return ::stat(path.c_str(), &st) == 0 && st.st_uid == getuid();
+}
+
+/* Directory "size" for the unusual directory-as-file load path. */
+static off_t
+posix_file_size(const fs::path& path)
+{
+	struct stat st{};
+	if (::stat(path.c_str(), &st) != 0) return 0;
+	return st.st_size;
+}
 
 
 /*********** Save the patched file ********************/
 int
-save(const char *fname, const char *start, const char *end, int flags)
+save(const fs::path& fname, const char *start, const char *end, int flags)
 {
 	int		fd;
 	std::string	status;
 	const char	*newstr;
 	off_t	filesize;
 
-	if (!fname) {
+	if (fname.empty()) {
 		emsg("No file|No current filename");
 		return 0;
 	}
-	if (stat(fname, &buf) == -1) {
+
+	std::error_code ec;
+	const auto st = fs::status(fname, ec);
+	if (!fs::exists(st)) {
 		newstr = "[New file] ";
 	} else {
-		if (S_ISDIR(buf.st_mode)) {
-			msg(std::format("{}{}{} Is a directory", '"', fname, '"').c_str());
+		if (fs::is_directory(st)) {
+			msg(std::format("{}{}{} Is a directory", '"', fname.string(), '"'));
 			return 0;
-		} else if (S_ISCHR(buf.st_mode)) {
-			msg(std::format("{}{}{} Character special file", '"', fname, '"').c_str());
+		} else if (fs::is_character_file(st)) {
+			msg(std::format("{}{}{} Character special file", '"', fname.string(), '"'));
 			return 0;
-		} else if (S_ISBLK(buf.st_mode)) {
+		} else if (fs::is_block_file(st)) {
 			/*
 			msg(... Block special file ...);
 			return 0;
@@ -95,17 +118,17 @@ save(const char *fname, const char *start, const char *end, int flags)
 	}
 
 	if (filemode == PARTIAL) flags = O_RDWR;
-	if ((fd = open(fname, flags, 0666)) < 0) {
-        sysemsg(fname);
+	if ((fd = open(fname.c_str(), flags, 0666)) < 0) {
+        sysemsg(fname.string());
 		return 0;
 	}
 	if (filemode == PARTIAL) {
 		if (block_read) {
 			filesize = block_read;
-			status = std::format("{}{}{} range {}-{}", '"', fname, '"',
+			status = std::format("{}{}{} range {}-{}", '"', fname.string(), '"',
 				block_begin, block_begin - 1 + filesize);
 			if (lseek(fd, block_begin, SEEK_SET) < 0) {
-				sysemsg(fname);
+				sysemsg(fname.string());
 				return 0;
 			}
 		} else {
@@ -114,91 +137,87 @@ save(const char *fname, const char *start, const char *end, int flags)
         }
 	} else {
 		filesize = end - start + 1L;
-		status = std::format("{}{}{} {}{} bytes", '"', fname, '"', newstr, filesize);
+		status = std::format("{}{}{} {}{} bytes", '"', fname.string(), '"', newstr, filesize);
 	}
 
 	if (write(fd, start, filesize) != filesize) {
-		sysemsg(fname);
+		sysemsg(fname.string());
 		close(fd);
 		return 0;
 	}
 	close(fd);
 	edits = 0;
-	msg(status.c_str());
+	msg(status);
 	return 1;
 }
 
 
 /* loads a file, returns the filesize */
 off_t
-load(const char *fname)
+load(const fs::path& fname)
 {
 	int		fd = -1;
 	std::string	status;
+	off_t	fsize = 0;
 
-	buf.st_size = 0L;
-	if (fname != nullptr) {
-		/*
-		sprintf(string, "\"%s\"", fname);
-		msg(string);
-		refresh();
-		*/
-		if (stat(fname, &buf) == -1) {
+	if (!fname.empty()) {
+		std::error_code ec;
+		const auto st = fs::status(fname, ec);
+		if (!fs::exists(st)) {
 		/* check for EOVERFLOW       75              */
 		/* Value too large for defined data type     */
 		/* means bvi is compiled without lfs support */
-			if (errno == ENOENT) {
+			if (ec == std::errc::no_such_file_or_directory || !ec) {
 				filemode = NEW;
 			} else {
 				move(maxy, 0);
 				endwin();
-				std::perror(fname);
+				std::perror(fname.c_str());
 				std::exit(0);
 			}
-		/*
-		} else if (S_ISDIR(buf.st_mode)) {
-			filemode = DIRECTORY;
-		*/
-		} else if (S_ISCHR(buf.st_mode)) {
+		} else if (fs::is_character_file(st)) {
 			filemode = CHARACTER_SPECIAL;
-		} else if (S_ISBLK(buf.st_mode)) {
+		} else if (fs::is_block_file(st)) {
 			filemode = BLOCK_SPECIAL;
+			fsize = posix_file_size(fname);
 			if (!block_flag) {
 				block_flag = 1;
 				block_begin = 0;
 				block_size = 1024;
 				block_end = block_begin + block_size - 1;
 			}
-			if ((fd = open(fname, O_RDONLY)) > 0) {
+			if ((fd = open(fname.c_str(), O_RDONLY)) > 0) {
 				B(P_RO) = true;
 				params[P_RO].changed = true;
 			} else {
-				sysemsg(fname);
+				sysemsg(fname.string());
 				filemode = ERROR;
 			}
-		} else if (S_ISREG(buf.st_mode) || S_ISDIR(buf.st_mode)) {
-#if 0
-           /* stat() call above will fail if file is too large */
-           /* this size check will never fail                  */
-           if ((unsigned long long)buf.st_size > (unsigned long long)OFF_T_MAX) {
-				move(maxy, 0);
-				endwin();
-				std::printf("File too large\n");
-				std::exit(0);
+		} else if (fs::is_regular_file(st) || fs::is_directory(st)) {
+			if (fs::is_regular_file(st)) {
+				fsize = static_cast<off_t>(fs::file_size(fname, ec));
+				if (ec) {
+					move(maxy, 0);
+					endwin();
+					std::perror(fname.c_str());
+					std::exit(0);
+				}
+			} else {
+				fsize = posix_file_size(fname);
 			}
-#endif
-			if ((fd = open(fname, O_RDONLY)) > 0) {
-				if (S_ISREG(buf.st_mode)) {
+			if ((fd = open(fname.c_str(), O_RDONLY)) > 0) {
+				if (fs::is_regular_file(st)) {
 					filemode = REGULAR;
 				} else {
 					filemode = DIRECTORY;
 				}
-				if (access(fname, W_OK)) {
+				/* access(2) considers credentials; filesystem perms do not. */
+				if (access(fname.c_str(), W_OK)) {
 					B(P_RO) = true;
 					params[P_RO].changed = true;
 				}
 			} else {
-	            sysemsg(fname);
+	            sysemsg(fname.string());
 				filemode = ERROR;
 			}
 		}
@@ -209,11 +228,11 @@ load(const char *fname)
 	memsize = 1024;
 	if (block_flag) {
 		if (block_flag == BLOCK_BEGIN) {
-			block_size = buf.st_size - block_begin;
+			block_size = fsize - block_begin;
 		}
 		memsize += block_size;
 	} else if (filemode == REGULAR) {
-		memsize += buf.st_size;
+		memsize += fsize;
 	}
 	if ((mem = static_cast<char*>(std::malloc(memsize))) == nullptr) {
 		move(maxy, 0);
@@ -225,53 +244,53 @@ load(const char *fname)
 
 	if (block_flag && ((filemode == REGULAR) || (filemode == BLOCK_SPECIAL))) {
 		if (lseek(fd, block_begin, SEEK_SET) < 0) {
-			sysemsg(fname);
+			sysemsg(fname.string());
 			filemode = ERROR;
 		} else {
 			if ((filesize = read(fd, mem, block_size)) == 0) {
-				status = std::format("{}{}{} Empty file", '"', fname, '"');
+				status = std::format("{}{}{} Empty file", '"', fname.string(), '"');
 				filemode = ERROR;
 			} else {
-				status = std::format("{}{}{} range {}-{}", '"', fname, '"',
+				status = std::format("{}{}{} range {}-{}", '"', fname.string(), '"',
 					block_begin, block_begin + filesize - 1);
 				filemode = PARTIAL;
 				block_read = filesize;
 				P(P_OF) = block_begin;
 				params[P_OF].changed = true;
 			}
-			msg(status.c_str());
+			msg(status);
 			refresh();
 		}
 	} else if ((filemode == REGULAR) || (filemode == DIRECTORY)) {
-		filesize = buf.st_size;
+		filesize = fsize;
 		if (read(fd, mem, filesize) != filesize) {
-            sysemsg(fname);
+            sysemsg(fname.string());
 			filemode = ERROR;
 		}
 	} else {
 		filesize = 0L;
 	}
 	if (fd > 0) close(fd);
-	if (fname != nullptr) {
+	if (!fname.empty()) {
 		switch (filemode) {
 		case NEW:
-			status = std::format("{}{}{} [New File]", '"', fname, '"');
+			status = std::format("{}{}{} [New File]", '"', fname.string(), '"');
 			break;
 		case REGULAR:
-			status = std::format("{}{}{} {}{} bytes", '"', fname, '"',
+			status = std::format("{}{}{} {}{} bytes", '"', fname.string(), '"',
 				B(P_RO) ? "[Read only] " : "", filesize);
 			break;
 		case DIRECTORY:
-			status = std::format("{}{}{} Directory", '"', fname, '"');
+			status = std::format("{}{}{} Directory", '"', fname.string(), '"');
 			break;
 		case CHARACTER_SPECIAL:
-			status = std::format("{}{}{} Character special file", '"', fname, '"');
+			status = std::format("{}{}{} Character special file", '"', fname.string(), '"');
 			break;
 		case BLOCK_SPECIAL:
-			status = std::format("{}{}{} Block special file", '"', fname, '"');
+			status = std::format("{}{}{} Block special file", '"', fname.string(), '"');
 			break;
 		}
-		if (filemode != ERROR) msg(status.c_str());
+		if (filemode != ERROR) msg(status);
 	}
 	pagepos = mem;
 	maxpos = mem + filesize;
@@ -301,14 +320,14 @@ bvi_init(const char *dir)
 	}
 
 	const char *home = std::getenv("HOME");
-	std::string rcpath = home ? std::string(home) + "/.bvirc" : "/.bvirc";
-	if (stat(rcpath.c_str(), &buf) == 0) {
-		if (buf.st_uid == getuid()) read_rc(rcpath.c_str());
+	fs::path rcpath = home ? fs::path(home) / ".bvirc" : fs::path("/.bvirc");
+	if (fs::exists(rcpath) && owned_by_self(rcpath)) {
+		read_rc(rcpath);
 	}
 
 	rcpath = ".bvirc";
-	if (stat(rcpath.c_str(), &buf) == 0) {
-		if (buf.st_uid == getuid())	read_rc(rcpath.c_str());
+	if (fs::exists(rcpath) && owned_by_self(rcpath)) {
+		read_rc(rcpath);
 	}
 }
 
@@ -374,26 +393,35 @@ alloc_buf(off_t n, char **buffer)
 
 
 int
-addfile(const char *fname)
+addfile(const fs::path& fname)
 {
 	int		fd;
 	off_t	oldsize;
+	std::error_code ec;
+	const auto st = fs::status(fname, ec);
 
-	if (stat(fname, &buf)) {
-		sysemsg(fname);
+	if (!fs::exists(st)) {
+		sysemsg(fname.string());
 		return 1;
 	}
-	if ((fd = open(fname, O_RDONLY)) == -1) {
-		sysemsg(fname);
+	off_t fsize = fs::is_regular_file(st)
+		? static_cast<off_t>(fs::file_size(fname, ec))
+		: posix_file_size(fname);
+	if (ec && fs::is_regular_file(st)) {
+		sysemsg(fname.string());
+		return 1;
+	}
+	if ((fd = open(fname.c_str(), O_RDONLY)) == -1) {
+		sysemsg(fname.string());
 		return 1;
 	}
 	oldsize = filesize;
-	if (enlarge(buf.st_size)) return 1;
-	if (read(fd, mem + filesize, buf.st_size) == -1) {
-		sysemsg(fname);
+	if (enlarge(fsize)) return 1;
+	if (read(fd, mem + filesize, fsize) == -1) {
+		sysemsg(fname.string());
 		return 1;
 	}
-	filesize += buf.st_size;
+	filesize += fsize;
 	maxpos = mem + filesize;
 	close(fd);
 	setpage(mem + oldsize);

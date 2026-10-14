@@ -37,8 +37,11 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <filesystem>
 #include <format>
 #include <string>
+
+namespace fs = std::filesystem;
 
 
 
@@ -55,7 +58,7 @@ PTR		curpos;
 PTR		maxpos;
 PTR		pagepos;
 PTR		spos;
-char	*name = nullptr;
+fs::path	name;
 const char	*shell;
 std::string	cmdstr;
 FILE	*Ausgabe_Datei;
@@ -199,7 +202,7 @@ main(int argc, char *argv[])
 			n++;
 			break;
 		default:			/* must be a file name */
-			name = strdup(argv[n]);
+			name = argv[n];
 			files = &(argv[n]);
 			numfiles = argc - n;
 			n = argc;

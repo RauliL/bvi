@@ -33,8 +33,11 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <filesystem>
 #include <format>
 #include <string>
+
+namespace fs = std::filesystem;
 
 static	bool		from_file = false;
 static	FILE	*ffp;
@@ -199,11 +202,11 @@ showparms(bool all)
 
 /* reads the init file (.bvirc) */
 int
-read_rc(const char *fn)
+read_rc(const fs::path& fn)
 {
 	int i;
 
-	if ((ffp = std::fopen(fn, "r")) == nullptr) return -1;
+	if ((ffp = std::fopen(fn.c_str(), "r")) == nullptr) return -1;
 	from_file = true;
 	while (std::fgets(fbuf, MAXCMD, ffp) != nullptr) {
 		i = std::strlen(fbuf) - 1;

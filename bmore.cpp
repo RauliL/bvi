@@ -32,15 +32,19 @@
 
 #include "bmore.hpp"
 
+#include <filesystem>
 #include <format>
 #include <string>
 #include <string_view>
+#include <system_error>
+
+namespace fs = std::filesystem;
 
 const char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
 
 int		maxx, maxy;
 int		mymaxx = 0, mymaxy = 0;
-char	*name = nullptr;
+fs::path	name;
 char	sstring[MAXCMD] = "";	/* string for search */
 char	estring[MAXCMD] = "";	/* string for shell escape */
 char	string[MAXCMD];
@@ -193,7 +197,7 @@ main(int argc, char *argv[])
 			n++;
 			break;
 		default:			/* must be a file name */
-			name = strdup(argv[n]);
+			name = argv[n];
 			files = &(argv[n]);
 			numfiles = argc - n;
 			n = argc;
@@ -275,7 +279,7 @@ main(int argc, char *argv[])
 			highlight();
 			std::printf("--More--");
 			if (prompt == 2) {
-				std::printf("(Next file: %s)", name);
+				std::printf("(Next file: %s)", name.c_str());
 			} else if (!no_intty && filesize) {
 				std::printf("(%d%%)", (int)((bytepos * 100) / filesize));
 			}
@@ -341,7 +345,7 @@ main(int argc, char *argv[])
 					case 'f':
 						prompt = 0;
 						if (!no_intty)
-							std::printf("\"%s\" line %lu", name,
+							std::printf("\"%s\" line %lu", name.c_str(),
 								(unsigned long)(bytepos - out_len));
 						else
 							std::printf("[Not a file] line %lu",
@@ -353,7 +357,7 @@ main(int argc, char *argv[])
 						do_next(precount);
 						std::printf("\r");
 						cleartoeol();
-						std::printf("\n...Skipping to file %s\r\n\r\n", name);
+						std::printf("\n...Skipping to file %s\r\n\r\n", name.c_str());
 						prompt = 2;
 						break;
 					case 'p':
@@ -361,7 +365,7 @@ main(int argc, char *argv[])
 						do_next(-precount);
 						std::printf("\r");
 						cleartoeol();
-						std::printf("\n...Skipping back to file %s\r\n\r\n", name);
+						std::printf("\n...Skipping back to file %s\r\n\r\n", name.c_str());
 						prompt = 2;
 						break;
 					case 'q':
@@ -494,12 +498,12 @@ main(int argc, char *argv[])
 						if (ch == 'v') {
 							cmd = std::format("bvi +{} {}",
 								(unsigned long)(screen_home +
-								(maxy + 1) / 2 * out_len), name);
+								(maxy + 1) / 2 * out_len), name.string());
 						} else {
 							if (precount < 1) precount = bytepos - screen_home;
 							cmd = std::format("bvi -b {} -s {} {}",
 								(unsigned long)screen_home,
-								(unsigned long)precount, name);
+								(unsigned long)precount, name.string());
 						}
 						doshell(cmd.c_str());
 						to_print = maxy + 1;
@@ -590,8 +594,7 @@ do_next(int n)
 		else
 			file_nr += n;
 		prompt = 2;
-		std::free(name);
-		name = strdup(*(files + file_nr - 1));
+		name = *(files + file_nr - 1);
 	} else {
 		if (curr_file) std::fclose(curr_file);
 		reset_tty();
@@ -601,17 +604,17 @@ do_next(int n)
 
 
 int
-open_file(const char *name)
+open_file(const fs::path& name)
 {
-	struct	stat	buf;
-
-	if (stat(name, &buf) > -1) {
-		filesize = buf.st_size;
+	std::error_code ec;
+	const auto sz = fs::file_size(name, ec);
+	if (!ec) {
+		filesize = static_cast<off_t>(sz);
 	}
 	if (curr_file) std::fclose(curr_file);
 	if (numfiles > 1) do_header = true;
-	if ((curr_file = std::fopen(name, "rb")) == nullptr) {
-		std::perror(name);
+	if ((curr_file = std::fopen(name.c_str(), "rb")) == nullptr) {
+		std::perror(name.c_str());
 		exval = 1;
 		return 1;
 	}
@@ -663,11 +666,11 @@ printout(int lns)
 	}
 	if (do_header) {
 		if (no_tty) {
-			std::printf("::::::::::::::\n%s\n::::::::::::::\n", name);
+			std::printf("::::::::::::::\n%s\n::::::::::::::\n", name.c_str());
 		} else {
 			std::printf("\r");
 			cleartoeol();
-			std::printf("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name);
+			std::printf("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name.c_str());
 		}
 		do_header = false;
 		corr = 2;

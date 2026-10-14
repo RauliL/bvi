@@ -720,13 +720,13 @@ cur_back()
 
 
 void
-fileinfo(const char *fname)
+fileinfo(const std::filesystem::path& fname)
 {
 	off_t	bytepos;
 	std::string	status;
 
-	if (fname) {
-		status = std::format("{}{}{} ", '"', fname, '"');
+	if (!fname.empty()) {
+		status = std::format("{}{}{} ", '"', fname.string(), '"');
 	} else {
 		status = "No file ";
 	}

@@ -35,8 +35,12 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <filesystem>
 #include <format>
 #include <string>
+#include <system_error>
+
+namespace fs = std::filesystem;
 
 #ifdef HAVE_UNISTD_H
 #	include <unistd.h>
@@ -59,8 +63,7 @@
 #define ONE_FILE		64
 #define	MAX_ONE_FILE	128
 
-static	char	*altfile = nullptr;	/* alternate file */
-static	struct	stat buf;
+static	fs::path	altfile;	/* alternate file */
 static	int		c_argc = 0;
 static	char	*c_argv[9];
 
@@ -76,14 +79,13 @@ int		addr_flag;
 PTR		start_addr;
 PTR		end_addr;
 
-extern	char	*name;			/* actual filename */
 extern	char	**files;		/* used for "next" and "rewind" */
 extern	int		numfiles, curfile;
 extern	int		errno;
 
 static	std::string	oldbuf;		/** for :!! command **/
 
-static bool save_chk(const char*, const char*, const char*, int);
+static bool save_chk(const fs::path&, const char*, const char*, int);
 
 
 /*
@@ -284,16 +286,16 @@ docmdline(const char *cmdline)
 		if (c_argc == 1) {
 		    /* change '%' to Filename */
 		    while ((p = std::strchr(c_argv[0], '%')) != nullptr && *(p-1) != '\\') {
-		        if (name == nullptr) {
+		        if (name.empty()) {
 		            emsg("No filename@to substitute for %");
 		            return;
 		        }
 		        *p = '\0';
-		        oldbuf = std::string(c_argv[0]) + name + (p + 1);
+		        oldbuf = std::string(c_argv[0]) + name.string() + (p + 1);
 				c_argv[0] = oldbuf.data();
 		    }
 		}
-		if (name == nullptr && c_argc != 0) name = strdup(c_argv[0]);
+		if (name.empty() && c_argc != 0) name = c_argv[0];
 		if (force) {
 			if (c_argc == 0) ok = save(name, start_addr, end_addr, saveflag);
 				else	ok = save(c_argv[0], start_addr, end_addr, saveflag);
@@ -301,15 +303,17 @@ docmdline(const char *cmdline)
 			if (c_argc == 0) {
 				save_chk(name, start_addr, end_addr, saveflag);
 			} else {
-				if (!stat(c_argv[0], &buf)) {
+				std::error_code ec;
+				const auto st = fs::status(c_argv[0], ec);
+				if (fs::exists(st)) {
 					if (saveflag == WRITE) {
-						emsg(std::format("File exists@- use \"{}! {}\" to overwrite", cmdname, c_argv[0]).c_str());
+						emsg(std::format("File exists@- use \"{}! {}\" to overwrite", cmdname, c_argv[0]));
 						return;
 					} else {		/* APPEND */
 /* We can only append to a regular file! */
-						if (S_ISREG(buf.st_mode)) {
+						if (fs::is_regular_file(st)) {
 							if (filemode == PARTIAL) filemode = REGULAR;
-						} else if (S_ISBLK(buf.st_mode)) {
+						} else if (fs::is_block_file(st)) {
 							emsg("Cannot append to a block special file");
 							return;
 						}
@@ -379,7 +383,9 @@ docmdline(const char *cmdline)
 		if (c_argc == 0) {
 			c_argv[0] = rootdir;
 		}
-		if (chdir(c_argv[0])) sysemsg(c_argv[0]);
+		std::error_code ec;
+		fs::current_path(c_argv[0], ec);
+		if (ec) sysemsg(c_argv[0]);
 	} else if (!std::strncmp("edit", cmdname, len) && CMDLNG(4, 1)) {
 /*
  * The command ":e#" gets expanded to something like ":efile", so
@@ -396,13 +402,12 @@ docmdline(const char *cmdline)
 		doecmd(c_argv[0], force);
 	} else if (!std::strncmp("file", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
-		if (c_argc != 0) name = strdup(c_argv[0]);
+		if (c_argc != 0) name = c_argv[0];
 		fileinfo(name);
 	} else if (!std::strncmp("read", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
 		/* read reads a file at EOF */
-		if (c_argc == 0) c_argv[0] = name;
-		if (!addfile(c_argv[0])) {
+		if (!addfile(c_argc == 0 ? name : fs::path(c_argv[0]))) {
 			edits = U_TRUNC;
 			undosize = filesize;
 			repaint();
@@ -610,10 +615,10 @@ yd_addr()
 
 /*********** Save file if not read only ********************/
 static bool
-save_chk(const char *fname, const char *start, const char *end, int flags)
+save_chk(const fs::path& fname, const char *start, const char *end, int flags)
 {
    if (B(P_RO)) {
-       emsg(std::format("{}{}{} File is read only", '"', name ? name : "", '"').c_str());
+       emsg(std::format("{}{}{} File is read only", '"', name.string(), '"'));
        return false;
    }
    return save(fname, start, end, flags) != 0;
@@ -634,40 +639,31 @@ do_exit()
 bool
 doecmd(const char *arg, bool force)
 {
-	char *tmp;
-
-	if (*arg == '\0') arg = nullptr;
+	if (arg != nullptr && *arg == '\0') arg = nullptr;
 	if (!force && edits) {
-		emsg(std::format("No write@since last change (:{}! overrides)", "edit").c_str());
+		emsg(std::format("No write@since last change (:{}! overrides)", "edit"));
 		/*
-		if (altfile)
-			free(altfile);
-		altfile = strdup(arg);
+		altfile = arg ? fs::path(arg) : fs::path{};
 		*/
 		return false;
 	}
 	if (arg != nullptr) {
-		if (name != nullptr && !std::strcmp(arg, name)) {
+		if (!name.empty() && name == arg) {
 			if (!edits || (edits && !force))
 				return true;
 		}
-		if (name != nullptr && !std::strcmp(arg, "#")) {
-			if (altfile == nullptr) {
+		if (!name.empty() && std::strcmp(arg, "#") == 0) {
+			if (altfile.empty()) {
 				emsg("No alternate filename@to substitute for #");
 				return false;
 			}
-			tmp = name;
-			name = altfile;
-			altfile = tmp;
+			std::swap(name, altfile);
 		} else {
-			if (altfile) {
-				std::free(altfile);
-			}
-			altfile = name;
-			name = strdup(arg);
+			altfile = std::move(name);
+			name = arg;
 		}
 	}
-	if (name == nullptr) {
+	if (name.empty()) {
 		emsg("No file|No current filename");
 		return false;
 	}

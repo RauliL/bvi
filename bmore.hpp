@@ -37,6 +37,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <csetjmp>
+#include <filesystem>
 #include <string_view>
 
 #include "patchlevel.h"
@@ -108,7 +109,7 @@ void	emsg(std::string_view s);
 void	do_next(int n);
 void	bmsearch(int ch);
 void	pushback(int n, const char *where);
-int		open_file(const char *name);
+int		open_file(const std::filesystem::path& name);
 int		printout(int lns);
 int		rdline(int ch, char *sstring);
 int		nextchar();
