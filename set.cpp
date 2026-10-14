@@ -308,20 +308,21 @@ do_logic(int mode, const char *str)
 
 
 static void
-redraw_cmdstr(const std::string& p, int x)
+redraw_cmdstr(const std::string& p, int x, size_t pos)
 {
 	move(maxy, x);
 	clrtoeol();
 	for (char ch : p) {
 		addch(ch);
 	}
+	move(maxy, x + static_cast<int>(pos));
 }
 
 int
 getcmdstr(std::string& p, int x, bool cmd_completion)
 {
 	int		c;
-	int		n;
+	size_t	pos = 0;
 
 	if (from_file) {
 		char	tmp[MAXCMD+1];
@@ -341,32 +342,64 @@ getcmdstr(std::string& p, int x, bool cmd_completion)
 	move(maxy, x);
     do {
         switch (c = vgetc()) {
+		case BVICTRL('A'):		/* beginning of line */
+		case KEY_HOME:
+			pos = 0;
+			move(maxy, x);
+			break;
+		case BVICTRL('E'):		/* end of line */
+		case KEY_END:
+			pos = p.size();
+			move(maxy, x + static_cast<int>(pos));
+			break;
+		case BVICTRL('U'):		/* delete to beginning of line */
+			if (pos > 0) {
+				p.erase(0, pos);
+				pos = 0;
+				redraw_cmdstr(p, x, pos);
+			}
+			break;
+		case BVICTRL('B'):
+		case KEY_LEFT:
+			if (pos > 0) {
+				--pos;
+				move(maxy, x + static_cast<int>(pos));
+			}
+			break;
+		case BVICTRL('F'):
+		case KEY_RIGHT:
+			if (pos < p.size()) {
+				++pos;
+				move(maxy, x + static_cast<int>(pos));
+			}
+			break;
 		case BVICTRL('H'):
 		case ASCII_DEL:
 		case KEY_BACKSPACE:
-		case KEY_LEFT:
-            if (!p.empty()) {
-                p.pop_back();
-				move(maxy, x);
-				n = x;
-                for (char ch : p)  {
-                    addch(ch);
-					n++;
-				}
-				addch(' ');
-				move(maxy, n);
-            } else {
-                msg("");
+			if (pos > 0) {
+				p.erase(pos - 1, 1);
+				--pos;
+				redraw_cmdstr(p, x, pos);
+			} else if (p.empty()) {
+				msg("");
 				std::signal(SIGINT, SIG_IGN);
-                return 1;
-            }
-            break;
+				return 1;
+			}
+			break;
+		case KEY_DC:			/* delete under cursor */
+			if (pos < p.size()) {
+				p.erase(pos, 1);
+				redraw_cmdstr(p, x, pos);
+			}
+			break;
 		case '\t':
 			if (cmd_completion && ex_complete_command(p)) {
-				redraw_cmdstr(p, x);
+				pos = p.size();
+				redraw_cmdstr(p, x, pos);
 			} else if (!cmd_completion) {
-				addch(c);
-				p.push_back(static_cast<char>(c));
+				p.insert(pos, 1, static_cast<char>(c));
+				++pos;
+				redraw_cmdstr(p, x, pos);
 			} else {
 				beep();
 			}
@@ -382,14 +415,17 @@ getcmdstr(std::string& p, int x, bool cmd_completion)
 #if CR != KEY_ENTER
         case CR:
 #endif
-		case KEY_RIGHT:
-		case KEY_UP:
-		case KEY_DOWN:
 		case KEY_ENTER:
             break;
+		case KEY_UP:
+		case KEY_DOWN:
+			break;
         default:        /* a normal character */
-            addch(c);
-            p.push_back(static_cast<char>(c));
+			if (c >= 0 && c < 256 && !std::iscntrl(static_cast<unsigned char>(c))) {
+				p.insert(pos, 1, static_cast<char>(c));
+				++pos;
+				redraw_cmdstr(p, x, pos);
+			}
             break;
         }
 		refresh();
