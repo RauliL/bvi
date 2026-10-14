@@ -1,3 +1,13 @@
+New in release 2.0.0
+====================
+
+* Colon command parsing refactored to std::string with a command callback map
+* Tab completion on the ex command line for commands and filenames
+* Ex command line editing: cursor movement, ^A/^E, Home/End, ^U, Delete
+* Replace deprecated sprintf usage (fixes macOS -Wdeprecated-declarations build)
+* Gruvbox dark syntax highlighting (address, byte classes, search, status, errors)
+* Colors toggle and per-role #RRGGBB settings (:set colors, :set color_*)
+
 New in release 1.4.0 (stable)
 =============================
 
