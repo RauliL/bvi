@@ -29,6 +29,7 @@
  */
 
 #include    "bvi.hpp"
+#include    "colors.hpp"
 #include    "set.hpp"
 
 #include <algorithm>
@@ -501,94 +502,93 @@ statpos()
 	std::string status_str = std::format("{:08X} {} \\{:03o} 0x{:02X} {:3d} {:3s}",
 		(unsigned long long)(bytepos + P(P_OF)), bin_val, Char1, Char1, Char1, str);
 	statsize = static_cast<int>(status_str.size());
-	attrset(A_BOLD);
+	attrset(color_attr(ColorRole::Status));
 	status = maxx - 1 - statsize;
 	mvaddstr(maxy, status, status_str.c_str());
-	attrset(A_NORMAL);
+	attrset(color_attr(ColorRole::Normal));
 }
 
 
 void
 printline(PTR mempos, int scpos)
 {
-	/* int		print_pos; */
-	PTR			hl_start = 0;
-	PTR			hl_end = 0;
-	PTR			f_start = 0;
-	PTR			f_end = 0;
-	int			print_pos = 0, mv_pos = 0;
+	PTR			hl_start = nullptr;
+	PTR			hl_end = nullptr;
+	PTR			f_start = nullptr;
+	PTR			f_end = nullptr;
+	int			print_pos = 0;
 	unsigned char cur_ch;
+	bool		in_search = false;
 	char		asc[MAXCMD+1];
+	int		asc_attr[MAXCMD];
 
 	if (mempos > maxpos) {
 		std::strcpy(linbuf, "~         ");
 	} else {
-
 		std::snprintf(linbuf, sizeof(linbuf), addr_form,
 			static_cast<long long>(mempos - mem + P(P_OF)));
-		*asc = '\0';
 	}
-	mvaddstr(scpos, mv_pos, linbuf);
-	mv_pos = AnzAdd;
-	*linbuf = '\0';
-	if (hl_spat) {
-	    f_start = (mempos - Anzahl) < mem ? mem : (mempos - Anzahl);
-	    f_end = mempos + (2 * Anzahl);
-	    hl_start = fsearch_end(f_start, f_end, search_pat, &hl_end);
+	attrset(color_attr(ColorRole::Address));
+	mvaddstr(scpos, 0, linbuf);
+	attrset(color_attr(ColorRole::Normal));
+
+	if (hl_spat && mempos <= maxpos) {
+		f_start = (mempos - Anzahl) < mem ? mem : (mempos - Anzahl);
+		f_end = mempos + (2 * Anzahl);
+		hl_start = fsearch_end(f_start, f_end, search_pat, &hl_end);
+		while (hl_start != nullptr && hl_end <= mempos) {
+			f_start = hl_end;
+			hl_start = fsearch_end(f_start, f_end, search_pat, &hl_end);
+		}
+		if (hl_start != nullptr && hl_start < mempos && hl_end > mempos) {
+			in_search = true;
+		}
 	}
 
+	move(scpos, AnzAdd);
 	for (print_pos = 0; print_pos < Anzahl; print_pos++) {
-		if (hl_spat) {
-		    while (hl_start != nullptr) {
-		        if (hl_start < mempos) {
-		            if (hl_end < mempos) {
-		                f_start = hl_start + 1;
-		                hl_start = fsearch_end(f_start, f_end, search_pat, &hl_end);
-		            } else {
-		                attrset(A_STANDOUT); /* start out highlighted */
-		                break;
-		            }
-		        } else if (hl_start >= mempos) {
-		            break;
-		        }
-		    }
-		    if (hl_start != nullptr) {
-		        if ((hl_start - mempos) == print_pos) {
-		            mvaddstr(scpos, mv_pos, linbuf);
-		            mv_pos = AnzAdd + (3 * print_pos);
-		            *linbuf = '\0';
-		            attrset(A_STANDOUT);
-		        }
-		        if ((hl_end - mempos) == print_pos) {
-		            mvaddstr(scpos, mv_pos, linbuf);
-		            *linbuf = '\0';
-		            mv_pos = AnzAdd + (3 * print_pos);
-		            f_start = hl_end;
-		            hl_start = fsearch_end(f_start, f_end, search_pat, &hl_end);
-		            if (f_start != hl_start) {
-		                attrset(A_NORMAL);
-		            }
-		        }
-		    }
+		if (hl_spat && hl_start != nullptr) {
+			if ((hl_start - mempos) == print_pos) {
+				in_search = true;
+			}
+			if ((hl_end - mempos) == print_pos) {
+				in_search = false;
+				f_start = hl_end;
+				hl_start = fsearch_end(f_start, f_end, search_pat, &hl_end);
+				if (hl_start != nullptr && (hl_start - mempos) == print_pos) {
+					in_search = true;
+				}
+			}
 		}
+
+		int attr;
 		if (mempos + print_pos >= maxpos) {
 			std::strcpy(tmpbuf, "   ");
 			cur_ch = ' ';
+			attr = color_attr(ColorRole::Normal);
 		} else {
-			cur_ch = *(mempos + print_pos);
+			cur_ch = static_cast<unsigned char>(*(mempos + print_pos));
 			std::snprintf(tmpbuf, sizeof(tmpbuf), "%02X ", cur_ch);
+			attr = in_search ? color_attr(ColorRole::Search)
+				: color_for_byte(cur_ch);
 		}
-		std::strcat(linbuf, tmpbuf);
+		attrset(attr);
+		addstr(tmpbuf);
+		asc_attr[print_pos] = attr;
 		if (std::isprint(cur_ch))
-			*(asc + print_pos) = cur_ch;
+			asc[print_pos] = static_cast<char>(cur_ch);
 		else
-			*(asc + print_pos) = '.';
+			asc[print_pos] = '.';
 	}
-	mvaddstr(scpos, mv_pos, linbuf);
-	mv_pos = AnzAdd + (3 * print_pos);
-	attrset(A_NORMAL);
-	*(asc + Anzahl) = '\0';
-	mvaddstr(scpos, mv_pos, asc);
+	attrset(color_attr(ColorRole::Normal));
+
+	const int asc_col = AnzAdd + (3 * Anzahl);
+	move(scpos, asc_col);
+	for (print_pos = 0; print_pos < Anzahl; print_pos++) {
+		attrset(asc_attr[print_pos]);
+		addch(static_cast<unsigned char>(asc[print_pos]));
+	}
+	attrset(color_attr(ColorRole::Normal));
 }
 
 

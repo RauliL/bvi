@@ -35,6 +35,7 @@
 #include <clocale>
 
 #include "bvi.hpp"
+#include "colors.hpp"
 #include "set.hpp"
 
 #include <filesystem>
@@ -252,6 +253,7 @@ main(int argc, char *argv[])
 	/****** Initialisation of curses ******/
 	initscr();
 	attrset(A_NORMAL);
+	init_colors();
 
     set_window_size();
 

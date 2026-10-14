@@ -33,6 +33,7 @@
  */
 
 #include "bvi.hpp"
+#include "colors.hpp"
 #include "set.hpp"
 
 #include <algorithm>
@@ -1290,9 +1291,9 @@ emsg(std::string_view s)
 	}
 
 	clearstr();
-	attrset(A_REVERSE);
+	attrset(color_attr(ColorRole::Error));
 	cnt = outmsg(s);
-	attrset(A_NORMAL);
+	attrset(color_attr(ColorRole::Normal));
 	if (cnt >= (maxx - stchar)) {
 		addch('\n');
 		wait_return(true); }

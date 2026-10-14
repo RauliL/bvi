@@ -66,7 +66,17 @@ extern	std::vector<param>	params;
 #define P_WL		14	/* Wordlength for w, W, b, B command */
 #define	P_WS		15	/* wrapscan */
 #define P_HL		16	/* highlight search enabled */
-#define	P_CO		17	/* color/attribute setting */
+#define	P_CO		17	/* colors enabled */
+#define P_COLOR_BG	18
+#define P_COLOR_FG	19
+#define P_COLOR_ADDRESS	20
+#define P_COLOR_NULL	21
+#define P_COLOR_CONTROL	22
+#define P_COLOR_ASCII	23
+#define P_COLOR_HIGH	24
+#define P_COLOR_SEARCH	25
+#define P_COLOR_STATUS	26
+#define P_COLOR_ERROR	27
 
 /*
  * Accessors for the active alternative in params[n].value
@@ -74,3 +84,7 @@ extern	std::vector<param>	params;
 #define	P(n)	(std::get<off_t>(params[n].value))
 #define	B(n)	(std::get<bool>(params[n].value))
 #define	S(n)	(std::get<std::string>(params[n].value))
+
+/* First color_* string parameter index through last inclusive. */
+#define P_COLOR_FIRST	P_COLOR_BG
+#define P_COLOR_LAST	P_COLOR_ERROR

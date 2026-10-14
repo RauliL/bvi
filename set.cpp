@@ -31,6 +31,7 @@
  */
 
 #include "bvi.hpp"
+#include "colors.hpp"
 #include "set.hpp"
 
 #include <filesystem>
@@ -60,6 +61,17 @@ std::vector<param> params = {
 	{ "wordlength",	"wl",		off_t{4}, false },
 	{ "wrapscan",	"ws",		true, false },
 	{ "highlight",	"hl",		true, false },
+	{ "colors",	"co",		true, false },
+	{ "color_bg",	"color_bg",	std::string{"#282828"}, false },
+	{ "color_fg",	"color_fg",	std::string{"#ebdbb2"}, false },
+	{ "color_address", "color_address", std::string{"#d3869b"}, false },
+	{ "color_null",	"color_null",	std::string{"#928374"}, false },
+	{ "color_control", "color_control", std::string{"#fe8019"}, false },
+	{ "color_ascii", "color_ascii",	std::string{"#b8bb26"}, false },
+	{ "color_high",	"color_high",	std::string{"#fb4934"}, false },
+	{ "color_search", "color_search", std::string{"#fabd2f"}, false },
+	{ "color_status", "color_status", std::string{"#8ec07c"}, false },
+	{ "color_error", "color_error",	std::string{"#fb4934"}, false },
 };
 
 int
@@ -147,6 +159,32 @@ doset(const char *arg)		/* parameter string */
 					hl_spat = false;
 					repaint();
 				}
+				if (i == P_CO) {
+					apply_colors();
+				}
+			}
+		} else if (std::holds_alternative<std::string>(params[i].value)) {
+			if (!std::strcmp(params[i].fullname, "term")) {
+				emsg("Can't change type of terminal from within bvi");
+				return 1;
+			}
+			if (arg[std::strlen(s)] != '=' || state == false) {
+				emsg(std::format("Option {} requires a value",
+					params[i].fullname).c_str());
+				return 1;
+			}
+			const char *val = arg + std::strlen(s) + 1;
+			if (i >= P_COLOR_FIRST && i <= P_COLOR_LAST) {
+				int r = 0, g = 0, b = 0;
+				if (!parse_hex_color(val, r, g, b)) {
+					emsg("Invalid color@- use #RRGGBB");
+					return 1;
+				}
+			}
+			std::get<std::string>(params[i].value) = val;
+			params[i].changed = true;
+			if (i >= P_COLOR_FIRST && i <= P_COLOR_LAST) {
+				apply_colors();
 			}
 		} else {
 			emsg("Can't change type of terminal from within bvi");

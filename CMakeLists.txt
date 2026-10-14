@@ -45,6 +45,7 @@ configure_file(
 add_executable(
   bvi
   bvi.cpp
+  colors.cpp
   comm.cpp
   edit.cpp
   io.cpp
