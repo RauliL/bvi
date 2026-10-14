@@ -157,8 +157,15 @@ edit(int mode)
 				rep_buf.push_back(static_cast<char>(ch1));
 				len = rep_buf.size();
 				mvaddch(y, x + 1, ch1);
-				std::sprintf(tmpbuf, "%c%c", ch, ch1);
-				std::sscanf(tmpbuf, "%2x", &ch);
+				{
+					const auto hex_val = [](int c) {
+						if (c >= '0' && c <= '9') return c - '0';
+						if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+						if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+						return 0;
+					};
+					ch = (hex_val(ch) << 4) | hex_val(ch1);
+				}
 			} else {
 				beep();
 				rep_buf.pop_back();
@@ -517,7 +524,8 @@ printline(PTR mempos, int scpos)
 		std::strcpy(linbuf, "~         ");
 	} else {
 
-		std::sprintf(linbuf, addr_form, (long long)(mempos - mem + P(P_OF)));
+		std::snprintf(linbuf, sizeof(linbuf), addr_form,
+			static_cast<long long>(mempos - mem + P(P_OF)));
 		*asc = '\0';
 	}
 	mvaddstr(scpos, mv_pos, linbuf);
@@ -564,11 +572,11 @@ printline(PTR mempos, int scpos)
 		    }
 		}
 		if (mempos + print_pos >= maxpos) {
-			std::sprintf(tmpbuf, "   ");
+			std::strcpy(tmpbuf, "   ");
 			cur_ch = ' ';
 		} else {
 			cur_ch = *(mempos + print_pos);
-			std::sprintf(tmpbuf, "%02X ", cur_ch);
+			std::snprintf(tmpbuf, sizeof(tmpbuf), "%02X ", cur_ch);
 		}
 		std::strcat(linbuf, tmpbuf);
 		if (std::isprint(cur_ch))
