@@ -53,7 +53,7 @@ PTR		maxpos;
 PTR		pagepos;
 PTR		spos;
 char	*name = nullptr;
-char	*shell;
+const char	*shell;
 char	string[MAXCMD+1];
 char	cmdstr[MAXCMD+1] = "";
 FILE	*Ausgabe_Datei;
@@ -704,7 +704,7 @@ main(int argc, char *argv[])
 
 
 off_t
-calc_size(char *arg)
+calc_size(const char *arg)
 {
 	off_t	val;
 	extern int errno;
@@ -755,7 +755,7 @@ trunc_cur()
 
 
 int
-do_append(off_t count, char *buf)
+do_append(off_t count, const char *buf)
 {
 	if (filesize + count > memsize) {
 		if (enlarge(count + 100L)) return 1;
@@ -858,7 +858,7 @@ do_undo()
 
 
 void
-do_over(PTR loc, off_t n, PTR buf)
+do_over(PTR loc, off_t n, const char *buf)
 {
 	if (n < 1L) {
 		emsg(nobytes);
@@ -880,7 +880,7 @@ do_over(PTR loc, off_t n, PTR buf)
 
 
 void
-do_put(PTR loc, off_t n, PTR buf)
+do_put(PTR loc, off_t n, const char *buf)
 {
 	if (n < 1L) {
 		emsg(nobytes);

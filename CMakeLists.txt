@@ -5,8 +5,7 @@ SET(CMAKE_CXX_STANDARD 20)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(CMAKE_CXX_EXTENSIONS OFF)
 
-# Legacy C code assigns string literals to char*; allow until further const-cleanup.
-ADD_COMPILE_OPTIONS(-Wno-write-strings)
+ADD_COMPILE_OPTIONS(-Wwrite-strings -Wcast-qual)
 
 OPTION(
   COMPILE_BMORE

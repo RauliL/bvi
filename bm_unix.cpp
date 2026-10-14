@@ -134,7 +134,7 @@ sig(int sig)
  * doshell() - run a command or an interactive shell
  */
 void
-doshell(char *cmd)
+doshell(const char *cmd)
 {
 	int	ret;
 	const char	*shell;

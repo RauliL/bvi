@@ -34,7 +34,7 @@
 #include	"bvi.hpp"
 #include	"set.hpp"
 
-static	int sbracket(int start, char *scan, int count);
+static	int sbracket(int start, const char *scan, int count);
 
 char	act_pat[MAXCMD];  /* found pattern */
 char	pattern[MAXCMD + 1];
@@ -46,7 +46,7 @@ const char	*emptyclass = "Bad character class|Empty byte class '[]' or '[^]' can
 
 
 PTR
-bregexec(PTR start, char *scan)
+bregexec(PTR start, const char *scan)
 {
 	char	*act;
 	int		count, test;
@@ -121,7 +121,7 @@ bregexec(PTR start, char *scan)
 
 
 static int
-sbracket(int start, char *scan, int count)
+sbracket(int start, const char *scan, int count)
 {
 	if (*scan++ == '^') {
 		if (!memchr(scan, start, --count)) return 0;
@@ -204,11 +204,11 @@ backsearch(PTR start, char mode)
 /* used by :s
  */
 int
-do_substitution(int delim, char *line, PTR startpos, PTR endpos)
+do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 {
 	int		n;
 	char	*found;
-	char	*cmd = nullptr;
+	const char	*cmd = nullptr;
 	int		repl_count = 0;
 	bool		global = false;
 	bool		conf = false;
@@ -360,9 +360,9 @@ SKIP:
  * return	address found
  */
 PTR
-searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
+searching(int ch, const char *line, PTR startpos, PTR endpos, int flag)
 {
-	char	*cmd = nullptr;
+	const char	*cmd = nullptr;
 	PTR		found;
 	int		sdir;
 	static	char	m[2];
@@ -463,8 +463,8 @@ searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
 /* Copies a string from s2 to s1, up to delim or 0
  * returns pointer to next character
  */
-char *
-patcpy(char *s1, char *s2, char delim)
+const char *
+patcpy(char *s1, const char *s2, char delim)
 {
 	while (*s2 != '\0' && *s2 != delim) {
 		if (*s2 == '\\' && *(s2 + 1) == delim) s2++;
@@ -477,7 +477,7 @@ patcpy(char *s1, char *s2, char delim)
 
 
 PTR
-fsearch_end(PTR start, PTR end, char *smem, PTR *s_end)
+fsearch_end(PTR start, PTR end, const char *smem, PTR *s_end)
 {
 	PTR	spos;
 
@@ -496,7 +496,7 @@ fsearch_end(PTR start, PTR end, char *smem, PTR *s_end)
 
 
 PTR
-fsearch(PTR start, PTR end, char *smem)
+fsearch(PTR start, PTR end, const char *smem)
 {
    PTR     s_end;
    return fsearch_end(start, end, smem, &s_end);
@@ -504,7 +504,7 @@ fsearch(PTR start, PTR end, char *smem)
 
 
 PTR
-rsearch(PTR start, PTR end, char *smem)
+rsearch(PTR start, PTR end, const char *smem)
 {
 	PTR	spos;
 
@@ -569,7 +569,7 @@ calc_addr(char **pointer, PTR def_addr)
 			break;
 		case '\\':
 		case '/':
-			cmd = patcpy(pattern, cmd + 1, ch);
+			cmd = const_cast<char *>(patcpy(pattern, cmd + 1, ch));
 			if (pattern[0] == '\0' && again == 0) {
 				emsg(noprev);
 				return nullptr;
@@ -586,7 +586,7 @@ calc_addr(char **pointer, PTR def_addr)
 			break;
 		case '#':
 		case '?':
-			cmd = patcpy(pattern, cmd + 1, ch);
+			cmd = const_cast<char *>(patcpy(pattern, cmd + 1, ch));
 			if (pattern[0] == '\0' && again == 0) {
 				emsg(noprev);
 				return nullptr;

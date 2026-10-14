@@ -30,6 +30,8 @@
 #include	"bvi.hpp"
 #include	"set.hpp"
 
+#include	<string>
+
 
 char	*poi;
 int		smode;
@@ -39,13 +41,13 @@ bool		ignore_case = false;
 
 extern	long	bytepos;
 extern	bool	ignore_case;
-extern	char	*emptyclass;
+extern	const char	*emptyclass;
 
 /*
  *  Compiling an ASCII sequence to a regex string
  */
 int
-ascii_comp(char *smem, char *pattern)
+ascii_comp(char *smem, const char *pattern)
 {
 	char	*end;
 	char	*comp;
@@ -53,9 +55,10 @@ ascii_comp(char *smem, char *pattern)
 	char	*counter;
 	int		count;
 	bool	bracket, dot;
+	std::string pat_buf{pattern};
 
 	comp = smem;
-	poi = pattern;
+	poi = pat_buf.data();
 	while (*poi != END) {
 		bracket = false;
 		if (magic) {
@@ -164,16 +167,17 @@ ascii_comp(char *smem, char *pattern)
  * Compiling a hex expression to a regex string
  */
 int
-hex_comp(char *smem, char *pattern)
+hex_comp(char *smem, const char *pattern)
 {
 	char	*end;
 	char	*comp;
 	int		cc, ccm;
 	char	*counter;
 	int		count, nr;
+	std::string pat_buf{pattern};
 
 	comp = smem;
-	poi = pattern;
+	poi = pat_buf.data();
 	while (*poi != END) {
 		while (*poi == ' ' || *poi == '\t') poi++;
 		if (*poi == '[') {

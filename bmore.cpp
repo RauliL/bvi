@@ -596,7 +596,7 @@ do_next(int n)
 
 
 int
-open_file(char *name)
+open_file(const char *name)
 {
 	struct	stat	buf;
 
@@ -616,7 +616,7 @@ open_file(char *name)
 
 
 void
-putline(char *buf, int num)
+putline(const char *buf, int num)
 {
 	int			print_pos;
 	unsigned	char	ch;
@@ -712,7 +712,7 @@ nextchar()
 
 
 void
-pushback(int n, char *where)
+pushback(int n, const char *where)
 {
 	if (cnt) memmove(cmdbuf + n, cmdbuf, n);
 	memcpy(cmdbuf, where, n);
@@ -729,7 +729,7 @@ pushback(int n, char *where)
  *  1   found
  */
 int
-bmregexec(char *scan)
+bmregexec(const char *scan)
 {
 	char	*act;
 	int		count, test;
@@ -847,7 +847,7 @@ bmregexec(char *scan)
 
 
 int
-sbracket(int start, char *scan, int count)
+sbracket(int start, const char *scan, int count)
 {
 	if (*scan++ == '^') {
 		if (!memchr(scan, start, --count)) return 0;

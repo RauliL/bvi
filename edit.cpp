@@ -716,7 +716,7 @@ cur_back()
 
 
 void
-fileinfo(char *fname)
+fileinfo(const char *fname)
 {
 	off_t	bytepos;
 	char	fstatus[MAXCMD];

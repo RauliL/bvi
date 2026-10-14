@@ -81,7 +81,7 @@ extern	int		errno;
 
 static	char	oldbuf[CMDSZ];		/** for :!! command **/
 
-static bool save_chk(char*, char*, char*, int);
+static bool save_chk(const char*, const char*, const char*, int);
 
 
 /*
@@ -91,7 +91,7 @@ static bool save_chk(char*, char*, char*, int);
  * the environment variable "BVIINIT" (or eventually .bvirc).
  */
 void
-docmdline(char *cmdline)
+docmdline(const char *cmdline)
 {
 	char	buff[CMDSZ];
 	char	cmdbuf[CMDSZ];
@@ -621,7 +621,7 @@ yd_addr()
 
 /*********** Save file if not read only ********************/
 static bool
-save_chk(char *fname, char *start, char *end, int flags)
+save_chk(const char *fname, const char *start, const char *end, int flags)
 {
    if (B(P_RO)) {
        sprintf(string, "\"%s\" File is read only", name);
@@ -645,7 +645,7 @@ do_exit()
 
 
 bool
-doecmd(char *arg, bool force)
+doecmd(const char *arg, bool force)
 {
 	char *tmp;
 

@@ -57,16 +57,16 @@
 int		filemode;
 static	struct	stat	buf;
 static	off_t	block_read;
-char	*terminal;
+const char	*terminal;
 
 
 /*********** Save the patched file ********************/
 int
-save(char *fname, char *start, char *end, int flags)
+save(const char *fname, const char *start, const char *end, int flags)
 {
 	int		fd;
 	char	*string;
-	char	*newstr;
+	const char	*newstr;
 	off_t	filesize;
 
 	if (!fname) {
@@ -146,7 +146,7 @@ save(char *fname, char *start, char *end, int flags)
 
 /* loads a file, returns the filesize */
 off_t
-load(char *fname)
+load(const char *fname)
 {
 	int		fd = -1;
 	char	*string;
@@ -314,7 +314,7 @@ load(char *fname)
  * Needed for DOS version only
  */
 void
-bvi_init(char *dir)
+bvi_init(const char *dir)
 {
 	char    *initstr;
 	char    rcpath[MAXCMD];
@@ -404,7 +404,7 @@ alloc_buf(off_t n, char **buffer)
 
 
 int
-addfile(char *fname)
+addfile(const char *fname)
 {
 	int		fd;
 	off_t	oldsize;

@@ -59,7 +59,7 @@ std::vector<param> params = {
 };
 
 int
-doset(char *arg)		/* parameter string */
+doset(const char *arg)		/* parameter string */
 {
 	int		i;
 	const char	*s;
@@ -197,7 +197,7 @@ showparms(bool all)
 
 /* reads the init file (.bvirc) */
 int
-read_rc(char *fn)
+read_rc(const char *fn)
 {
 	int i;
 
