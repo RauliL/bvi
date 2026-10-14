@@ -210,8 +210,8 @@ do_substitution(int delim, char *line, PTR startpos, PTR endpos)
 	char	*found;
 	char	*cmd = nullptr;
 	int		repl_count = 0;
-	int		global = 0;
-	int		conf = 0;
+	bool		global = false;
+	bool		conf = false;
 	static	int		direct;
 	static	int		pat_len = -1;
 	static	int		ch;
@@ -285,8 +285,8 @@ do_substitution(int delim, char *line, PTR startpos, PTR endpos)
 		return -1;
 	}
 	if (delim != '\0') {
-		if (strchr(cmd, 'g')) global = 1;
-		if (strchr(cmd, 'c')) conf = 1;
+		if (strchr(cmd, 'g')) global = true;
+		if (strchr(cmd, 'c')) conf = true;
 	}
 	if ((strchr("\\#", ch) && loc == ASCII)
 		|| (strchr("/?", ch) && loc == HEX)) {
@@ -390,7 +390,7 @@ searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
 			cmd = patcpy(pattern, line, ch);
 			if (pattern[0] != '\0') {
 				if (ascii_comp(search_pat, pattern)) return 0L;
-				again = 1;
+				again = true;
 			}
 			break;
 		case '#':
@@ -399,7 +399,7 @@ searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
 			cmd = patcpy(pattern, line, ch);
 			if (pattern[0] != '\0') {
 				if (hex_comp(search_pat, pattern)) break;
-				again = 1;
+				again = true;
 			}
 			break;
 		}
@@ -575,7 +575,7 @@ calc_addr(char **pointer, PTR def_addr)
 				return nullptr;
 			}
 			if (pattern[0] != '\0') {
-				again = 1;
+				again = true;
 				if (ch == '/') {
 					if (ascii_comp(search_pat, pattern)) return nullptr;
 				} else {
@@ -592,7 +592,7 @@ calc_addr(char **pointer, PTR def_addr)
 				return nullptr;
 			}
 			if (pattern[0] != '\0') {
-				again = 1;
+				again = true;
 				if (ch == '?') {
 					if (ascii_comp(search_pat, pattern)) return nullptr;
 				} else {

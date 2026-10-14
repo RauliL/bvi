@@ -74,10 +74,6 @@
 #define REPLACE		1
 #define BVICTRL(n)		(n&0x1f)
 
-#ifndef TRUE
-#	define TRUE		true
-#	define FALSE	false
-#endif
 
 using PTR = char *;
 #define DELIM	'/'
@@ -92,8 +88,8 @@ using PTR = char *;
 
 extern	char	*version;
 extern	int		maxx, maxy;
-extern	int		ignore_case, magic;
-extern	int		no_tty, no_intty;
+extern	bool	ignore_case, magic;
+extern	bool	no_tty, no_intty;
 
 
 void	initterm();

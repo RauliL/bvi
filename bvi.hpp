@@ -99,10 +99,6 @@
 
 #define CMDLNG(a,b)     (len <= a && len >= b)
 
-#ifndef TRUE
-#	define TRUE		true
-#	define FALSE	false
-#endif
 
 using PTR = char *;
 #define DELIM	'/'
@@ -125,7 +121,7 @@ enum block_datum {
 extern	char	*version;
 extern	char	addr_form[];
 extern	char	search_pat[];
-extern	long	hl_spat;
+extern	bool	hl_spat;
 extern	char    pattern[];
 extern	char    rep_buf[];
 extern	int		maxx, maxy, x, y;
@@ -134,7 +130,7 @@ extern	int		edits;
 extern	int		AnzAdd;
 extern	int		Anzahl, Anzahl3;
 extern	int		addr_flag;
-extern	int		ignore_case, magic;
+extern	bool	ignore_case, magic;
 extern	int		screen, status, statsize;
 extern	PTR		mem;
 extern	PTR		maxpos;
@@ -161,7 +157,7 @@ extern	char	string[];
 extern	char	*shell;
 extern	char	*poi;
 extern	int		smode;
-extern	int		again;
+extern	bool	again;
 extern  int     block_flag;
 extern  off_t   block_begin, block_end, block_size;
 
@@ -188,7 +184,7 @@ int		chk_comm(int flag);
 void	docmdline(char *cmdline);
 void	do_over(PTR loc, off_t n, PTR buf);
 void	do_put(PTR loc, off_t n, PTR buf);
-int		doecmd(char *arg, int force);
+bool	doecmd(char *arg, bool force);
 void	do_exit();
 void	do_shell();
 void	do_undo();
@@ -210,7 +206,7 @@ PTR		fsearch_end(PTR start, PTR end, char *smem, PTR *s_end);
 PTR		rsearch(PTR start, PTR end, char *smem);
 PTR		end_word(PTR start);
 PTR		calc_addr(char **pointer, PTR def_addr);
-PTR		do_ft(int ch, int flag);
+PTR		do_ft(int ch, bool flag);
 char	*patcpy(char *s1, char *s2, char delim);
 void	setpage(PTR addr);
 void	msg(const char *s);
@@ -220,7 +216,7 @@ void	usage();
 void	bvi_init(char *dir);
 void	statpos();
 void	setcur();
-void	showparms(int all);
+void	showparms(bool all);
 void	toggle();
 void	scrolldown(int lns);
 void	scrollup(int lns);
@@ -237,7 +233,7 @@ off_t	edit(int mode);
 off_t	load(char *fname);
 int     ascii_comp(char *smem, char *pattern);
 int     hex_comp(char *smem, char *pattern);
-int		cur_forw(int check);
+int		cur_forw(bool check);
 int		cur_back();
 int		lineout();
 int		save(char *fname, char *start, char *end, int flags);
@@ -246,4 +242,4 @@ int		getcmdstr(char *p, int x);
 int		enlarge(off_t add);
 int		vgetc();
 int		xpos();
-int		wait_return(int flag);
+bool	wait_return(bool flag);

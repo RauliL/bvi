@@ -185,7 +185,7 @@ load(char *fname)
 				block_end = block_begin + block_size - 1;
 			}
 			if ((fd = open(fname, O_RDONLY)) > 0) {
-				B(P_RO) = TRUE;
+				B(P_RO) = true;
 				params[P_RO].changed = true;
 			} else {
 				sysemsg(fname);
@@ -209,7 +209,7 @@ load(char *fname)
 					filemode = DIRECTORY;
 				}
 				if (access(fname, W_OK)) {
-					B(P_RO) = TRUE;
+					B(P_RO) = true;
 					params[P_RO].changed = true;
 				}
 			} else {

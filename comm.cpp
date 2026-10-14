@@ -81,7 +81,7 @@ extern	int		errno;
 
 static	char	oldbuf[CMDSZ];		/** for :!! command **/
 
-static int save_chk(char*, char*, char*, int);
+static bool save_chk(char*, char*, char*, int);
 
 
 /*
@@ -100,7 +100,7 @@ docmdline(char *cmdline)
 	char	*p;
 	size_t	len;
 	int		n, ok, ret;
-	int		force = 0;
+	bool		force = false;
 	int		saveflag;
 
 	if (*cmdline == '\0') return;
@@ -208,7 +208,7 @@ docmdline(char *cmdline)
 	}
 	cmdname[n] = '\0';
 	if (*cmd == '!') {
-		force = 1;
+		force = true;
 		cmd++;
 	}
 	len = strlen(cmdname);
@@ -233,17 +233,17 @@ docmdline(char *cmdline)
 		repl_count = 0;
 		addch('\n');
 		while ((current = searching(*cmd, cmd + 1, current,
-							end_addr, FALSE|S_GLOBAL)) != 0L) {
+							end_addr, false|S_GLOBAL)) != 0L) {
 			addch('\n');
 			printline(current, maxy - 1);
 			repl_count++;
 			if (repl_count == LINES - 2) {
-				if (wait_return(FALSE)) return;
+				if (wait_return(false)) return;
 				repl_count = 0;
 			}
 		}
 		if (repl_count) {
-			wait_return(TRUE);
+			wait_return(true);
 		} else {
 			repaint();
 			emsg(notfound);
@@ -391,9 +391,9 @@ docmdline(char *cmdline)
  */
 		if (*cmd == 'e' && c_argc == 0) {
 			if (cmd[1] == '!')
-				(void) doecmd(&cmd[2], TRUE);
+				(void) doecmd(&cmd[2], true);
 			else
-				(void) doecmd(&cmd[1], FALSE);
+				(void) doecmd(&cmd[1], false);
 			return;
 		}
 		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
@@ -620,15 +620,15 @@ yd_addr()
 
 
 /*********** Save file if not read only ********************/
-static int
+static bool
 save_chk(char *fname, char *start, char *end, int flags)
 {
    if (B(P_RO)) {
        sprintf(string, "\"%s\" File is read only", name);
        emsg(string);
-       return FALSE;
+       return false;
    }
-   return save(fname, start, end, flags);
+   return save(fname, start, end, flags) != 0;
 }
 
 void
@@ -644,8 +644,8 @@ do_exit()
 }
 
 
-int
-doecmd(char *arg, int force)
+bool
+doecmd(char *arg, bool force)
 {
 	char *tmp;
 
@@ -658,17 +658,17 @@ doecmd(char *arg, int force)
 			free(altfile);
 		altfile = strdup(arg);
 		*/
-		return FALSE;
+		return false;
 	}
 	if (arg != nullptr) {
 		if (name != nullptr && !strcmp(arg, name)) {
 			if (!edits || (edits && !force))
-				return TRUE;
+				return true;
 		}
 		if (name != nullptr && !strcmp(arg, "#")) {
 			if (altfile == nullptr) {
 				emsg("No alternate filename@to substitute for #");
-				return FALSE;
+				return false;
 			}
 			tmp = name;
 			name = altfile;
@@ -683,7 +683,7 @@ doecmd(char *arg, int force)
 	}
 	if (name == nullptr) {
 		emsg("No file|No current filename");
-		return FALSE;
+		return false;
 	}
 
 	edits = 0;
@@ -691,7 +691,7 @@ doecmd(char *arg, int force)
 	if (arg == nullptr) {
         setpage(current < maxpos ? current : maxpos - 1L);
     }
-	return TRUE;
+	return true;
 }
 
 
@@ -726,7 +726,7 @@ emsg(const char *s)
 	attrset(A_NORMAL);
 	if (cnt >= (maxx - stchar)) {
 		addch('\n');
-		wait_return(TRUE); }
+		wait_return(true); }
 }
 
 
@@ -767,7 +767,7 @@ msg(const char *s)
 	clearstr();
 	if (outmsg(s) >= (maxx - stchar)) {
 		addch('\n');
-		wait_return(TRUE);
+		wait_return(true);
 	}
 }
 
@@ -799,11 +799,11 @@ outmsg(const char *s)
 	return cnt;
 }
 
-/* If flag == TRUE we do a repaint
+/* If flag == true we do a repaint
  *
  */
-int
-wait_return(int flag)
+bool
+wait_return(bool flag)
 {
 	int	c;
 
@@ -820,8 +820,8 @@ wait_return(int flag)
 	}
 	clearstr();
 	signal(SIGINT, SIG_IGN);
-	if (c != CR && c != NL && c != ' ' && c != ':' && c != KEY_ENTER) return 1;
-	return 0;
+	if (c != CR && c != NL && c != ' ' && c != ':' && c != KEY_ENTER) return true;
+	return false;
 }
 
 

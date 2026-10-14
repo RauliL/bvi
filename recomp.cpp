@@ -33,12 +33,12 @@
 
 char	*poi;
 int		smode;
-int		again = 0;
-int		magic = 1;
-int		ignore_case = 0;
+bool		again = false;
+bool		magic = true;
+bool		ignore_case = false;
 
 extern	long	bytepos;
-extern	int		ignore_case;
+extern	bool	ignore_case;
 extern	char	*emptyclass;
 
 /*
@@ -52,17 +52,17 @@ ascii_comp(char *smem, char *pattern)
 	char	cc, cc1;
 	char	*counter;
 	int		count;
-	int		bracket, dot;
+	bool	bracket, dot;
 
 	comp = smem;
 	poi = pattern;
 	while (*poi != END) {
-		bracket = FALSE;
+		bracket = false;
 		if (magic) {
-			if (*poi == '[') bracket = TRUE;
+			if (*poi == '[') bracket = true;
 		} else {
 			if (*poi == '\\' && *(poi + 1) == '[') {
-				bracket = TRUE;
+				bracket = true;
 				poi++;
 			}
 		}
@@ -113,12 +113,12 @@ ascii_comp(char *smem, char *pattern)
 			poi++;
 			*counter = count;
 		} else {
-			dot = FALSE;
+			dot = false;
 			if (magic) {
-				if (*poi == '.') dot = TRUE;
+				if (*poi == '.') dot = true;
 			} else {
 				if (*poi == '\\' && *(poi + 1) == '.') {
-					dot = TRUE; poi++; }
+					dot = true; poi++; }
 			}
 
 			if (*poi == '\\') {

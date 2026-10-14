@@ -45,7 +45,7 @@ char contru[][4] = {"NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
 					"DEL" };
 char tmpbuf[10];
 char linbuf[16384];
-long hl_spat = 0;
+bool hl_spat = false;
 
 static  char    getcbuff[BUFFER];
 static  char    *getcnext = nullptr;
@@ -188,7 +188,7 @@ edit(int mode)
 		}
 
 		*curpos = (char)ch;
-		cur_forw(0);
+		cur_forw(false);
 		statpos();
 		if (mode == 'i' || mode == 'a') {
 			repaint();
@@ -264,7 +264,7 @@ wrong:
 			while (--precount) {
 				undo_buf[count++] = *(++curpos);
 				*curpos = (char)ch;
-				cur_forw(0);
+				cur_forw(false);
 				statpos();
 				lineout();
 			}
@@ -284,7 +284,7 @@ escape:
  * else setpage()
  */
 PTR
-do_ft(int ch, int flag)
+do_ft(int ch, bool flag)
 {
 	static	int	chi;
 	static	int	chp = 1;
@@ -641,7 +641,7 @@ setpage(PTR addr)
 
 
 int
-cur_forw(int check)
+cur_forw(bool check)
 {
 	if (check) {
 		if (current - mem >= filesize) {

@@ -95,7 +95,7 @@ const char	*nobytes = "No bytes@in the buffer";
 static	char	progname[8];
 static	char	line[MAXCMD+1];
 static	int		mark;
-static	int		wrstat = 1;
+static	bool		wrstat = true;
 
 static void set_window_size();
 
@@ -134,7 +134,7 @@ main(int argc, char *argv[])
 
 	if (!strcasecmp(progname, "bview")) {
 		params[P_RO].changed = true;
-		B(P_RO) = TRUE;
+		B(P_RO) = true;
 	} else if (!strcasecmp(progname, "bvedit")) {
 		/* This should be the beginners version */
 	}
@@ -144,7 +144,7 @@ main(int argc, char *argv[])
 		case '-':
 			if (argv[n][1] == 'R') {
 				params[P_RO].changed = true;
-				B(P_RO) = TRUE;
+				B(P_RO) = true;
 			} else if (argv[n][1] == 'c') {
 				if (argv[n + 1] == nullptr) {
 					usage();
@@ -251,8 +251,8 @@ main(int argc, char *argv[])
 
     set_window_size();
 
-	keypad(stdscr, TRUE);
-	scrollok(stdscr, TRUE);
+	keypad(stdscr, true);
+	scrollok(stdscr, true);
 	nonl();
 	cbreak();
 	noecho();
@@ -262,8 +262,8 @@ main(int argc, char *argv[])
 
 	bvi_init(argv[0]);
 	S(P_TT) = terminal;
-	if (block_flag && (B(P_MM) == TRUE)) {
-		B(P_MM) = FALSE;
+	if (block_flag && B(P_MM)) {
+		B(P_MM) = false;
 		params[P_TT].changed = true;
 	}
 	if (script > -1)
@@ -276,7 +276,7 @@ main(int argc, char *argv[])
 		setjmp(env);
 		current = (PTR)(pagepos + y * Anzahl + xpos());
 		if (wrstat) statpos();
-		wrstat = 1;
+		wrstat = true;
 		setcur();
 		ch = vgetc();
 		while (ch >= '0' && ch <= '9') {
@@ -425,7 +425,7 @@ main(int argc, char *argv[])
 					break;
 		case BVICTRL('G'):
 					fileinfo(name);
-					wrstat = 0;
+					wrstat = false;
 					break;
 		case BVICTRL('L'):   	/*** REDRAW SCREEN ***/
 					new_screen();
@@ -437,7 +437,7 @@ main(int argc, char *argv[])
 		case 'A':   smsg("APPEND MODE");
 					current = (PTR)(mem + filesize - 1L);
 					setpage(current++);
-					cur_forw(0);
+					cur_forw(false);
 					setcur();
 					undosize = filesize;
 					undo_count = edit(ch);
@@ -447,14 +447,14 @@ main(int argc, char *argv[])
 					break;
 		case 'e':	setpage(end_word(current));
 					break;
-		case ',':	do_ft(-1, 0);
+		case ',':	do_ft(-1, false);
 					break;
-		case ';':	do_ft(0, 0);
+		case ';':	do_ft(0, false);
 					break;
 		case 'F':	
 		case 'f':	
 		case 't':	
-		case 'T':	do_ft(ch, 0);
+		case 'T':	do_ft(ch, false);
 					break;
 		case 'G':   last_motion = current;
 					if (precount > -1)	{
@@ -508,7 +508,7 @@ main(int argc, char *argv[])
 					}
 					break;
 		case ESC:		/* un-highlight */
-					hl_spat = FALSE;
+					hl_spat = false;
 					repaint();
 					break;
 		case 'n': 		/**** Search Next ****/
@@ -637,7 +637,7 @@ main(int argc, char *argv[])
 					lflag++;
 					break;
 				case 'a':
-					if (cur_forw(1)) break;
+					if (cur_forw(true)) break;
 					current++;
 				case 'i':
 					sprintf(rep_buf, "%ld%c", precount, ch);
@@ -788,7 +788,7 @@ do_tilde(off_t count)
 			else if (islower((int)(*current)))
 				*current = toupper((int)(*current));
 		current++;
-		cur_forw(0);
+		cur_forw(false);
 	}
 	edits = U_TILDE;
 	setcur();
@@ -942,7 +942,7 @@ range(int ch)
 		addch(ch1);
 		refresh();
 		if (getcmdstr(line, 1)) break;
-		end_addr = searching(ch1, line, current, maxpos - 1, FALSE);
+		end_addr = searching(ch1, line, current, maxpos - 1, false);
 		if (!end_addr) {
 			beep();
 			return 0;
@@ -955,7 +955,7 @@ range(int ch)
 		addch(ch1);
 		refresh();
 		if (getcmdstr(line, 1)) break;
-		start_addr = searching(ch1, line, current, maxpos - 1, FALSE);
+		start_addr = searching(ch1, line, current, maxpos - 1, false);
 		if (!start_addr) {
 			beep();
 			return 0;
@@ -964,7 +964,7 @@ range(int ch)
 	case 'f':
 	case 't':
 		precount = count;
-		end_addr = do_ft(ch1, 1);
+		end_addr = do_ft(ch1, true);
 		if (!end_addr) {
 			beep();
 			return 0;
@@ -973,7 +973,7 @@ range(int ch)
 	case 'F':
 	case 'T':
 		precount = count;
-		start_addr = do_ft(ch1, 1);
+		start_addr = do_ft(ch1, true);
 		if (!start_addr) {
 			beep();
 			return 0;

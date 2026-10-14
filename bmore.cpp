@@ -52,14 +52,15 @@ int		arrnum = 0;
 char	numarr[64];		/* string for collecting number */
 char	addr_form[15];
 
-int		ascii_flag = 0;
-int		dup_print_flag = 0;
-int		c_flag = 0, d_flag = 0;
+bool		ascii_flag = false;
+bool		dup_print_flag = false;
+bool		c_flag = false, d_flag = false;
 int		exval = 0;
 int		init_search = 0;
 char	buffer1[MAXCMD], buffer2[MAXCMD];
 int		out_len;
-int		corr = 0, do_header = 0, to_print;
+int		corr = 0, to_print;
+bool		do_header = false;
 off_t	init_byte = 0;
 off_t	last_search = 0;
 off_t	screen_home, filesize;
@@ -163,13 +164,13 @@ main(int argc, char *argv[])
 				i = 1;
 				while (argv[n][i] != '\0') {
 					switch (argv[n][i]) {
-					case 'a':	ascii_flag++;
+					case 'a':	ascii_flag = true;
 								break;
-					case 'c':	c_flag++;
+					case 'c':	c_flag = true;
 								break;
-					case 'd':	d_flag++;
+					case 'd':	d_flag = true;
 								break;
-					case 'i':	ignore_case++;
+					case 'i':	ignore_case = true;
 								break;
 					default:		
 								usage();
@@ -261,7 +262,7 @@ main(int argc, char *argv[])
 	/* main loop */
 	do {
 		to_print = 0;
-		dup_print_flag = 0;
+		dup_print_flag = false;
 		if (prompt) {
 			if (prompt == 2) {
 				while (open_file(name)) {
@@ -310,18 +311,18 @@ main(int argc, char *argv[])
 
 		switch (ch) {
 		case ' ':	/*  Display next k lines of text [current screen size] */
-					dup_print_flag = 1;
+					dup_print_flag = true;
 					if (precount > 0) to_print = precount;
 						else to_print = maxy;
 					break;
 		case 'z':	/* Display next k lines of bytes [current screen size]* */
-					dup_print_flag = 1;
+					dup_print_flag = true;
 					if (precount > 0) z_line = precount;
 					to_print = z_line;
 					break;
 		case '\r':
 		case '\n':	/* Display next k lines of text [current screen size]* */
-					dup_print_flag = 1;
+					dup_print_flag = true;
 					if (precount > 0) r_line = precount;
 					to_print = r_line;
 					break;
@@ -603,7 +604,7 @@ open_file(char *name)
 		filesize = buf.st_size;
 	}
 	if (curr_file) fclose(curr_file);
-	if (numfiles > 1) do_header = 1;
+	if (numfiles > 1) do_header = true;
 	if ((curr_file = fopen(name, "rb")) == nullptr) {
 		perror(name);
 		exval = 1;
@@ -650,7 +651,7 @@ printout(int lns)
 {
 	int			c, num;
 	int			doub = 0;
-	static		int		flag;
+	static		bool		flag = false;
 	
 	if (c_flag) {
 		clearscreen();
@@ -663,7 +664,7 @@ printout(int lns)
 			cleartoeol();
 			printf("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name);
 		}
-		do_header = 0;
+		do_header = false;
 		corr = 2;
 	}
 	if (corr && (lns > maxy - 2)) lns -= corr;
@@ -677,7 +678,7 @@ printout(int lns)
 		if (memcmp(buffer1, buffer2, num) || !bytepos || !dup_print_flag) {
 			memcpy(buffer2, buffer1, num);
 			putline(buffer2, num);
-			if (!no_tty) flag = TRUE;
+			if (!no_tty) flag = true;
 			lns--;
 		} else {
 			if (flag) {
@@ -687,7 +688,7 @@ printout(int lns)
 			} else {
 				doub++;
 			}
-			flag = FALSE;
+			flag = false;
 			bytepos += num;
 		}
 		if (lns == 0) {
@@ -695,7 +696,7 @@ printout(int lns)
 			if (screen_home < 0) screen_home = 0;
 			return 0;
 		}
-		dup_print_flag = 1;
+		dup_print_flag = true;
 	} while(num);
 	return 1;
 }

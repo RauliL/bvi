@@ -33,7 +33,7 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
-static	int		from_file = 0;
+static	bool		from_file = false;
 static	FILE	*ffp;
 static	char	fbuf[MAXCMD+1];
 static	char	buf[MAXCMD+1];
@@ -63,19 +63,19 @@ doset(char *arg)		/* parameter string */
 {
 	int		i;
 	const char	*s;
-	int		did_window = FALSE;
-	int		state = TRUE;		/* new state of boolean parms. */
+	bool		did_window = false;
+	bool		state = true;		/* new state of boolean parms. */
 	char	string[80];
 
 	if (arg == nullptr) {
-		showparms(FALSE);
+		showparms(false);
 		return 0;
 	}
 	if (!strcmp(arg, "all")) {
-		showparms(TRUE);
+		showparms(true);
 		return 0;	}
 	if (!strncmp(arg, "no", 2)) {
-		state = FALSE;
+		state = false;
 		arg += 2; }
 
 	for (i = 0; i < static_cast<int>(params.size()); i++) {
@@ -107,8 +107,8 @@ doset(char *arg)		/* parameter string */
 			return 1;
 		}
 		if (std::holds_alternative<off_t>(params[i].value)) {
-			if ((i == P_LI) || (i == P_OF)) did_window++;
-			if (arg[strlen(s)] != '=' || state == FALSE) {
+			if ((i == P_LI) || (i == P_OF)) did_window = true;
+			if (arg[strlen(s)] != '=' || state == false) {
 				sprintf(string, "Option %s is not a toggle",
 						params[i].fullname);
 				emsg(string);
@@ -129,7 +129,7 @@ doset(char *arg)		/* parameter string */
 				    Anzahl3 = Anzahl * 3;
 				    status = Anzahl3 + Anzahl - 17;
 				    screen = Anzahl * (maxy - 1);
-					did_window++;
+					did_window = true;
 					stuffin("H");	/* set cursor at HOME */
 				}
 			}
@@ -140,8 +140,8 @@ doset(char *arg)		/* parameter string */
 			} else {
 				std::get<bool>(params[i].value) = state;
 				params[i].changed = true;
-				if (i == P_HL && state == FALSE) {
-					hl_spat = FALSE;
+				if (i == P_HL && state == false) {
+					hl_spat = false;
 					repaint();
 				}
 			}
@@ -165,7 +165,7 @@ doset(char *arg)		/* parameter string */
 
 /* show ALL parameters */
 void
-showparms(int all)
+showparms(bool all)
 {
 	int		n;
 
@@ -187,11 +187,11 @@ showparms(int all)
 		msg(buf);
 		n++;
 		if (n == P(P_LI)) {
-			if (wait_return(FALSE)) return;
+			if (wait_return(false)) return;
 			n = 1;
 		}
 	}
-	wait_return(TRUE);
+	wait_return(true);
 }
 
 
@@ -202,14 +202,14 @@ read_rc(char *fn)
 	int i;
 
 	if ((ffp = fopen(fn, "r")) == nullptr) return -1;
-	from_file = 1;
+	from_file = true;
 	while (fgets(fbuf, MAXCMD, ffp) != nullptr) {
 		i = strlen(fbuf) - 1;
 		while ((i >= 0) && (fbuf[i] == NL || fbuf[i] == CR)) fbuf[i--] = '\0';
 		docmdline(fbuf);
 	}
 	fclose(ffp);
-	from_file = 0;
+	from_file = false;
 	return 0;
 }
 

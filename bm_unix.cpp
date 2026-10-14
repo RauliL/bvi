@@ -44,9 +44,11 @@ char	*erase_ln;		/* erase line */
 extern	off_t	bytepos, screen_home;
 extern	FILE	*curr_file;
 
-int		got_int;
-int     fnum, no_intty, no_tty, slow_tty;
-int     dum_opt, dlines;
+bool		got_int;
+int     fnum;
+bool    no_intty, no_tty, slow_tty;
+bool    dum_opt;
+int     dlines;
 
 int
 putchr(int ch)
