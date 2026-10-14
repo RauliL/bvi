@@ -36,7 +36,7 @@
 
 #define stty(fd,argp)   tcsetattr(fd,TCSAFLUSH,argp)
 
-struct termios ostate, nstate;
+struct termios ostate;
 
 
 char	*rev_start, *rev_end;	/* enter and exit standout mode */
@@ -47,11 +47,7 @@ char	*erase_ln;		/* erase line */
 extern	off_t	bytepos, screen_home;
 extern	FILE	*curr_file;
 
-bool		got_int;
-int     fnum;
-bool    no_intty, no_tty, slow_tty;
-bool    dum_opt;
-int     dlines;
+bool    no_intty, no_tty;
 
 int
 putchr(int ch)
@@ -99,7 +95,6 @@ initterm()
 	no_intty = tcgetattr(fileno(stdin), &ostate);
 	tcgetattr(fileno(stderr), &ostate);
 
-	nstate = ostate;
 	if (!no_tty) {
 		ostate.c_lflag &= ~(ICANON|ECHO);
 	}

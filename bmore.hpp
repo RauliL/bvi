@@ -53,24 +53,8 @@
 #  include <curses.h>
 #endif
 
-/* defines for filemode */
-#define	ERROR				-1
-#define REGULAR				0
-#define NEW					1
-#define DIRECTORY			2
-#define CHARACTER_SPECIAL	3
-#define BLOCK_SPECIAL		4
-#define PARTIAL             5
-
 #define ASCII		1
-#define FORWARD		0
-#define BACKWARD	1
-#define CR			'\r'
-#define NL			'\n'
-#define BS			8
-#define	ESC			27
-#define SEARCH		0
-#define REPLACE		1
+#define ESC			27
 #define BVICTRL(n)		(n&0x1f)
 
 
@@ -85,7 +69,6 @@ using PTR = char *;
 	extern FILE *debug_fp;
 #endif
 
-extern	const char	*version;
 extern	int		maxx, maxy;
 extern	bool	ignore_case, magic;
 extern	bool	no_tty, no_intty;

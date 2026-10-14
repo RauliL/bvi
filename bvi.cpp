@@ -53,18 +53,15 @@ const char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
 jmp_buf	env;        /* context for `longjmp' function   */
 
 int		loc;
-int		maxx, maxy, x, xx, y;
+int		maxx, maxy, x, y;
 int		screen, status, statsize;
-off_t	size;
 PTR		mem = nullptr;
 PTR		curpos;
 PTR		maxpos;
 PTR		pagepos;
-PTR		spos;
 fs::path	name;
 const char	*shell;
 std::string	cmdstr;
-FILE	*Ausgabe_Datei;
 int		edits = 0;
 int		AnzAdd, Anzahl, Anzahl3;
 off_t	filesize, memsize, undosize;

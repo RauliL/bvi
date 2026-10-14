@@ -40,9 +40,6 @@
 
 namespace fs = std::filesystem;
 
-static	bool		from_file = false;
-static	FILE	*ffp;
-
 std::vector<param> params = {
 	{ "autowrite",	"aw",		false, false },
 	{ "columns",	"cm",		off_t{16}, false },
@@ -249,12 +246,10 @@ read_rc(const std::filesystem::path& path)
 		return false;
 	}
 
-	from_file = true;
 	while (std::getline(file, line)) {
 		docmdline(line);
 	}
 	file.close();
-	from_file = false;
 
 	return true;
 }
@@ -361,19 +356,6 @@ getcmdstr(std::string& p, int x, bool cmd_completion)
 {
 	int		c;
 	size_t	pos = 0;
-
-	if (from_file) {
-		char	tmp[MAXCMD+1];
-		if (std::fgets(tmp, sizeof(tmp), ffp) != nullptr) {
-			size_t i = std::strlen(tmp);
-			while (i > 0 && (tmp[i - 1] == NL || tmp[i - 1] == CR))
-				tmp[--i] = '\0';
-			p = tmp;
-			return 0;
-		} else {
-			return 1;
-		}
-	}
 
 	std::signal(SIGINT, jmpproc);
 	p.clear();

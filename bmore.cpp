@@ -40,15 +40,13 @@
 
 namespace fs = std::filesystem;
 
-const char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
-
 int		maxx, maxy;
 int		mymaxx = 0, mymaxy = 0;
 fs::path	name;
 char	sstring[MAXCMD] = "";	/* string for search */
 char	estring[MAXCMD] = "";	/* string for shell escape */
 char	string[MAXCMD];
-FILE	*curr_file = nullptr, *help_file;
+FILE	*curr_file = nullptr;
 int		AnzAdd;
 long	precount = -1;	/* number preceding command */
 

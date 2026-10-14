@@ -92,7 +92,6 @@
 #define NL			'\n'
 #define BS			8
 #define	ESC			27
-#define SEARCH		0
 #define BVICTRL(n)	(n&0x1f)
 #define	ASCII_DEL	0x7f
 
@@ -117,7 +116,6 @@ enum block_datum {
 	extern FILE *debug_fp;
 #endif
 
-extern	const char	*version;
 extern	char	addr_form[];
 extern	char	search_pat[];
 extern	bool	hl_spat;

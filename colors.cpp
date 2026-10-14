@@ -252,12 +252,6 @@ parse_hex_color(std::string_view text, int& r, int& g, int& b)
 	return true;
 }
 
-bool
-colors_enabled()
-{
-	return g_active;
-}
-
 int
 color_attr(ColorRole role)
 {

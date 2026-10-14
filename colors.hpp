@@ -27,9 +27,6 @@ void init_colors();
 /* Re-read color settings and refresh pairs / background / screen. */
 void apply_colors();
 
-/* True when color output is active (terminal + :set colors). */
-bool colors_enabled();
-
 /* ncurses attribute for a semantic role (COLOR_PAIR and/or fallback attrs). */
 int color_attr(ColorRole role);
 
