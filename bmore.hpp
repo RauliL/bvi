@@ -42,6 +42,7 @@
 
 #include "version.hpp"
 #include "config.hpp"
+#include "regex.hpp"
 
 #include <unistd.h>
 #include <term.h>
@@ -60,11 +61,6 @@
 #define CHARACTER_SPECIAL	3
 #define BLOCK_SPECIAL		4
 #define PARTIAL             5
-
-/* regular expressions */
-#define END     0
-#define ONE     1
-#define STAR    2
 
 #define ASCII		1
 #define FORWARD		0
@@ -115,8 +111,5 @@ int		printout(int lns);
 int		rdline(int ch, char *sstring);
 int		nextchar();
 int		vgetc();
-int     sbracket(int start, const char *scan, int count);
 int     bmregexec(const char *scan);
-int		ascii_comp(char *smem, const char *pattern);
-int		hex_comp(char *smem, const char *pattern);
 void    putline(const char *buf, int num);

@@ -44,6 +44,7 @@
 #include <sys/stat.h>
 
 #include "config.hpp"
+#include "regex.hpp"
 #include "version.hpp"
 
 #if defined(HAVE_NCURSES_H)
@@ -60,11 +61,6 @@
 #define CHARACTER_SPECIAL	3
 #define BLOCK_SPECIAL		4
 #define PARTIAL             5
-
-/* regular expressions */
-#define END     0
-#define ONE     1
-#define STAR    2
 
 /* undo modes */
 #define U_EDIT		1		/* undo o r R */
@@ -158,9 +154,6 @@ extern	char	*undo_buf;
 extern	char	*yank_buf;
 extern	int		repl_count;
 extern	const char	*shell;
-extern	char	*poi;
-extern	int		smode;
-extern	bool	again;
 extern  int     block_flag;
 extern  off_t   block_begin, block_end, block_size;
 
@@ -196,7 +189,6 @@ int		do_logic(int mode, const char *str);
 int		do_delete(off_t n, PTR start);
 int		doset(const char *arg);
 int		do_substitution(int delim, const char *line, PTR startpos, PTR endpos);
-int		hexchar();
 int		outmsg(std::string_view s);
 PTR		searching(int ch, const char *line, PTR startpos, PTR endpos, int flag);
 PTR		wordsearch(PTR start, char mode);
@@ -232,8 +224,6 @@ void	do_z(int mode);
 void	stuffin(std::string_view s);
 off_t	edit(int mode);
 off_t	load(const std::filesystem::path& fname);
-int     ascii_comp(char *smem, const char *pattern);
-int     hex_comp(char *smem, const char *pattern);
 int		cur_forw(bool check);
 int		cur_back();
 int		lineout();

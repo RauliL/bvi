@@ -78,9 +78,7 @@ static	char	progname[10];
 static	char	cmdbuf[MAXCMD];
 static	int		cnt = 0;
 static	int		icnt = 0;
-static	int		smode;
 
-/* char	search_pat[BUFFER];	*/  /* / or ? command */
 char	bmore_search_pat[BUFFER];   /* / or ? command */
 const char	*emptyclass = "Empty byte class '[]' or '[^]'";
 
@@ -741,99 +739,122 @@ bmregexec(const char *scan)
 	char	*act;
 	int		count, test;
 	int		l;
-	char	act_pat[MAXCMD];  /* found pattern */
+	char	act_pat[MAXCMD];  /* consumed bytes for pushback */
+	const bool fold_case = ignore_case && smode == ASCII;
 
 	act = act_pat;
 	l = 0;
-	while (*scan != 0) {
-		if ((test = nextchar()) == -1) return -1;
-		*act++ = test;
+	while (*scan != END) {
+		if ((test = nextchar()) == -1) {
+			return -1;
+		}
+		*act++ = static_cast<char>(test);
 		if (++l == MAXCMD) {
 			pushback(l, act_pat);
 			return 0;
 		}
-		if (ignore_case && smode == ASCII)	test = std::toupper(test);
-		switch (*scan++) {
-		case ONE:	/* exactly one character */
-				count = *scan++;
+		if (fold_case) {
+			test = std::toupper(test);
+		}
+		switch (static_cast<ReOp>(static_cast<unsigned char>(*scan++))) {
+		case ReOp::One:
+				count = static_cast<unsigned char>(*scan++);
 				if (count == 1) {
-					if (test != *scan) {
+					if (test != static_cast<unsigned char>(*scan)) {
 						bytepos++;
-						if (l > 1) pushback(--l, act_pat + 1);
+						if (l > 1) {
+							pushback(--l, act_pat + 1);
+						}
 						return 0;
 					}
-					scan++;
+					++scan;
 				} else if (count > 1) {
-					if (sbracket(test, scan, count)) {
+					if (class_rejects(test, scan, count)) {
 						bytepos++;
-						if (l > 1) pushback(--l, act_pat + 1);
+						if (l > 1) {
+							pushback(--l, act_pat + 1);
+						}
 						return 0;
 					}
 					scan += count;
 				}
 				break;
-		case STAR:  /* zero or more characters */
-				count = *scan++;
+		case ReOp::Star:
+				count = static_cast<unsigned char>(*scan++);
 				if (count == 1) {	/* only one character, 0 - n times */
-					while (test == *scan) {
-						if ((test = nextchar()) == -1) return -2;
-						*act++ = test;
+					auto lit = static_cast<unsigned char>(*scan);
+					while (test == lit) {
+						if ((test = nextchar()) == -1) {
+							return -2;
+						}
+						*act++ = static_cast<char>(test);
 						if (++l == MAXCMD) {
 							pushback(l, act_pat);
 							return 0;
 						}
-						if (ignore_case && smode == ASCII)
-								test = std::toupper(test);
+						if (fold_case) {
+							test = std::toupper(test);
+						}
 					}
 					pushback(1, --act);
-					l--;
-					scan++;
+					--l;
+					++scan;
 				} else if (count > 1) {	/* characters in bracket */
 					if (*scan == '^') {
 						do {
 /* If we found something matching the next part of the expression, we
  * abandon the search for not-matching characters. */
 							if (bmregexec(scan + count)) {
-								*act++ = test;	/* May be wrong case !! */
-								l++;
+								*act++ = static_cast<char>(test);	/* May be wrong case !! */
+								++l;
 								scan += count;
 								bytepos--;
 								break;
 							}
-							if (sbracket(test, scan, count)) {
+							if (class_rejects(test, scan, count)) {
 								bytepos++;
-								if (l > 1) pushback(--l, act_pat + 1);
+								if (l > 1) {
+									pushback(--l, act_pat + 1);
+								}
 								return 0;
 							} else {
-								if ((test = nextchar()) == -1) return -3;
-								*act++ = test;
+								if ((test = nextchar()) == -1) {
+									return -3;
+								}
+								*act++ = static_cast<char>(test);
 								if (++l == MAXCMD) {
 									pushback(l, act_pat);
 									return 0;
 								}
-								if (ignore_case && smode == ASCII)
-										test = std::toupper(test);
+								if (fold_case) {
+									test = std::toupper(test);
+								}
 							}
-						} while(1);
+						} while (true);
 					} else {
-						while(!sbracket(test, scan, count)) {
-							if ((test = nextchar()) == -1) return -4;
-							*act++ = test;
+						while (!class_rejects(test, scan, count)) {
+							if ((test = nextchar()) == -1) {
+								return -4;
+							}
+							*act++ = static_cast<char>(test);
 							if (++l == MAXCMD) {
 								pushback(l, act_pat);
 								return 0;
 							}
-							if (ignore_case && smode == ASCII)
-									test = std::toupper(test);
+							if (fold_case) {
+								test = std::toupper(test);
+							}
 						}
 						scan += count;
 						pushback(1, --act);
-						l--;
+						--l;
 					}
 				} else {	 /* ".*"  */
 					do {
-						if ((test = nextchar()) == -1) return -5;
-						*act++ = test;
+						if ((test = nextchar()) == -1) {
+							return -5;
+						}
+						*act++ = static_cast<char>(test);
 						if (++l == MAXCMD) {
 							pushback(l, act_pat);
 							return 0;
@@ -842,26 +863,16 @@ bmregexec(const char *scan)
 						bytepos--;
 					} while (bmregexec(scan) == 0);
 					bytepos++;
-					act--;
-					l--;
+					--act;
+					--l;
 				}
+				break;
+		case ReOp::End:
 				break;
 		}
 	}
 	pushback(l, act_pat);
 	return 1;	/* found */
-}
-
-
-int
-sbracket(int start, const char *scan, int count)
-{
-	if (*scan++ == '^') {
-		if (!std::memchr(scan, start, --count)) return 0;
-	} else {
-		if (std::memchr(scan, start, --count)) return 0;
-	}
-	return 1;
 }
 
 

@@ -34,12 +34,24 @@
 #include	"bvi.hpp"
 #include	"set.hpp"
 
+#include <csignal>
 #include <format>
 #include <string>
 
-static	int sbracket(int start, const char *scan, int count);
+namespace {
 
-char	act_pat[MAXCMD];  /* found pattern */
+struct SigIntGuard {
+	explicit SigIntGuard(void (*handler)(int)) noexcept
+	{
+		std::signal(SIGINT, handler);
+	}
+	~SigIntGuard() { std::signal(SIGINT, SIG_IGN); }
+	SigIntGuard(const SigIntGuard &) = delete;
+	SigIntGuard &operator=(const SigIntGuard &) = delete;
+};
+
+} // namespace
+
 char	pattern[MAXCMD + 1];
 char	search_pat[BUFFER];	/* / or ? command */
 const char	*notfound = "Fail|Pattern not found";
@@ -47,91 +59,10 @@ const char	*noprev = "No previous expression";
 const char	*emptyclass = "Bad character class|Empty byte class '[]' or '[^]' cannot match";
 
 
-
 PTR
 bregexec(PTR start, const char *scan)
 {
-	char	*act;
-	int		count, test;
-
-	act = act_pat;
-	while (*scan != 0) {
-		switch (*scan++) {
-		case ONE:	/* exactly one character */
-				count = *scan++;
-				if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
-					else 						test = *start;
-				if (count == 1) {
-					/* if (test != *scan) return 0; */
-					if (test != *scan) return nullptr;
-					scan++;
-				} else if (count > 1) {
-					/* if (sbracket(test, scan, count)) return 0; */
-					if (sbracket(test, scan, count)) return nullptr;
-					scan += count;
-				}
-				*act++ = *start++;
-				break;
-		case STAR:  /* zero or more characters */
-				count = *scan++;
-				if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
-					else 						test = *start;
-				if (count == 1) {	/* only one character, 0 - n times */
-					while(test == *scan) {
-						*act++ = *start++;
-						if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
-							else 						test = *start;
-					}
-					scan++;
-				} else if (count > 1) {	/* characters in bracket */
-					if (*scan == '^') {
-						while (start < maxpos) {
-							if (bregexec(start, scan + count)) {
-								*act = '\0';
-								/* return 1; */
-								return start;
-							}
-							/* if (sbracket(test, scan, count)) return 0; */
-							if (sbracket(test, scan, count)) return nullptr;
-							*act++ = *start++;
-							if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
-								else 						test = *start;
-							}
-					} else {
-						while(!sbracket(test, scan, count)) {
-							*act++ = *start++;
-							if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
-								else 						test = *start;
-						}
-						scan += count;
-					}
-				} else {		/* ".*"  */
-					while (start < maxpos) {
-						/* if (bregexec(start, scan)) { *act = '\0'; return 1; } */
-						if (bregexec(start, scan)) {
-							*act = '\0';
-							return start;
-						}
-						start++;
-					}
-				}
-		}
-	}
-	*act = '\0';
-	return start;   /* found */
-	/* return 1;	*/
-}
-
-
-static int
-sbracket(int start, const char *scan, int count)
-{
-	if (*scan++ == '^') {
-		if (!std::memchr(scan, start, --count)) return 0;
-	} else {
-		if (std::memchr(scan, start, --count)) return 0;
-	}
-	return 1;
+	return re_match_at(start, maxpos, scan, static_cast<ReMode>(smode), B(P_IC));
 }
 
 
@@ -232,23 +163,25 @@ do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 		if (pattern[0] == '\0') break;
 		if (ascii_comp(find_pat, pattern)) return 0;
 		cmd = patcpy(pattern, cmd, ch);	/* Replace Pattern */
-		poi = pattern;
-		pat_len = 0;
-		while (*poi) {
-			if (*poi == '\\') {
-				switch (*(++poi)) {
-				case '0':	repl_pat[pat_len++] = '\0'; break;
-				case 'n':	repl_pat[pat_len++] = '\n'; break;
-				case 'r':	repl_pat[pat_len++] = '\r'; break;
-				case 't':	repl_pat[pat_len++] = '\t'; break;
-				case '\\':	repl_pat[pat_len++] = '\\'; break;
-				default:	emsg(std::format("No such escape sequence \\{}", *poi));
-					return 0;
+		{
+			const char *p = pattern;
+			pat_len = 0;
+			while (*p) {
+				if (*p == '\\') {
+					switch (*(++p)) {
+					case '0':	repl_pat[pat_len++] = '\0'; break;
+					case 'n':	repl_pat[pat_len++] = '\n'; break;
+					case 'r':	repl_pat[pat_len++] = '\r'; break;
+					case 't':	repl_pat[pat_len++] = '\t'; break;
+					case '\\':	repl_pat[pat_len++] = '\\'; break;
+					default:	emsg(std::format("No such escape sequence \\{}", *p));
+						return 0;
+					}
+				} else {
+					repl_pat[pat_len++] = *p;
 				}
-			} else {
-				repl_pat[pat_len++] = *poi;
+				++p;
 			}
-			poi++;
 		}
 		break;
 	case '#':
@@ -258,18 +191,20 @@ do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 		cmd = patcpy(pattern, line, ch);
 		if (hex_comp(find_pat, pattern)) return 0;
 		cmd = patcpy(pattern, cmd, ch);	/* Replace Pattern */
-		poi = pattern;
-		pat_len = 0;
-		while (*poi) {
-			if (*poi == ' ' || *poi == '\t') {
-				poi++;
-			} else {
-				if ((n = hexchar()) < 0) {
-					emsg("Badly formed replacement pattern");
-					return 0;
+		{
+			char *p = pattern;
+			pat_len = 0;
+			while (*p) {
+				if (*p == ' ' || *p == '\t') {
+					++p;
+				} else {
+					if ((n = hexchar(p)) < 0) {
+						emsg("Badly formed replacement pattern");
+						return 0;
+					}
+					repl_pat[pat_len] = static_cast<char>(n);
+					++pat_len;
 				}
-				repl_pat[pat_len] = n;
-				pat_len++;
 			}
 		}
 		break;
@@ -478,44 +413,35 @@ patcpy(char *s1, const char *s2, char delim)
 PTR
 fsearch_end(PTR start, PTR end, const char *smem, PTR *s_end)
 {
-	PTR	spos;
-
-	std::signal(SIGINT, jmpproc);
-	for (spos = start; spos <= end; spos++) {
-		/* if (bregexec(spos, smem)) { */
+	SigIntGuard interrupt{jmpproc};
+	for (PTR spos = start; spos <= end; ++spos) {
 		if ((*s_end = bregexec(spos, smem))) {
-			std::signal(SIGINT, SIG_IGN);
 			++(*s_end);
-			return(spos);
+			return spos;
 		}
 	}
-	std::signal(SIGINT, SIG_IGN);
-	return(nullptr);
+	return nullptr;
 }
 
 
 PTR
 fsearch(PTR start, PTR end, const char *smem)
 {
-   PTR     s_end;
-   return fsearch_end(start, end, smem, &s_end);
+	PTR s_end;
+	return fsearch_end(start, end, smem, &s_end);
 }
 
 
 PTR
 rsearch(PTR start, PTR end, const char *smem)
 {
-	PTR	spos;
-
-	std::signal(SIGINT, jmpproc);
-	for (spos = start; spos >= end; spos--) {
+	SigIntGuard interrupt{jmpproc};
+	for (PTR spos = start; spos >= end; --spos) {
 		if (bregexec(spos, smem)) {
-			std::signal(SIGINT, SIG_IGN);
-			return(spos);
+			return spos;
 		}
 	}
-	std::signal(SIGINT, SIG_IGN);
-	return(nullptr);
+	return nullptr;
 }
 
 
