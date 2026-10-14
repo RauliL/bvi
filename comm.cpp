@@ -35,6 +35,9 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <format>
+#include <string>
+
 #ifdef HAVE_UNISTD_H
 #	include <unistd.h>
 #endif
@@ -61,7 +64,6 @@ static	struct	stat buf;
 static	int		c_argc = 0;
 static	char	*c_argv[9];
 
-const char	*nowrtmsg  = "No write@since last change (:%s! overrides)";
 const char	*morefiles = "more files@to edit";
 const char	*ambigous  = "Ambigous|Too many file names";
 const char	*ambvalue  = "Ambigous|Too many values";
@@ -79,7 +81,7 @@ extern	char	**files;		/* used for "next" and "rewind" */
 extern	int		numfiles, curfile;
 extern	int		errno;
 
-static	char	oldbuf[CMDSZ];		/** for :!! command **/
+static	std::string	oldbuf;		/** for :!! command **/
 
 static bool save_chk(const char*, const char*, const char*, int);
 
@@ -151,8 +153,7 @@ docmdline(const char *cmdline)
 		return;
 	}
 	if (start_addr < mem) {
-		sprintf(string, "Negative address@- first byte is %lld", (long long)P(P_OF));
-		emsg(string);
+		emsg(std::format("Negative address@- first byte is {}", P(P_OF)).c_str());
 		return;
 	}
 
@@ -172,14 +173,15 @@ docmdline(const char *cmdline)
 			return;
 			}
 		if (*(cmdbuf + 1) == '!') {
-			if (oldbuf[0] != '\0') {
-				strcpy(cmdbuf + 1, oldbuf);
-				msg(oldbuf);
+			if (!oldbuf.empty()) {
+				strncpy(cmdbuf + 1, oldbuf.c_str(), CMDSZ - 2);
+				cmdbuf[CMDSZ - 1] = '\0';
+				msg(oldbuf.c_str());
 			} else {
 				emsg("No previous command@to substitute for !");
 				return;
 			}
-		} else	sprintf(oldbuf, "\n%s\n", cmdbuf + 1);
+		} else	oldbuf = std::format("\n{}\n", cmdbuf + 1);
 
 		if (B(P_AW)) {
 			save(name, mem, maxpos, WRITE);
@@ -201,8 +203,7 @@ docmdline(const char *cmdline)
 	while (*cmd >= 'a' && *cmd <= 'z') {
 		cmdname[n++] = *cmd++;
 		if (n == MAXNAME)  {
-			sprintf(string, "What?|%s: Not an editor command", cmdbuf);
-			emsg(string);
+			emsg(std::format("What?|{}: Not an editor command", cmdbuf).c_str());
 			return;
 		}
 	}
@@ -224,8 +225,7 @@ docmdline(const char *cmdline)
 		if (!repl_count) {
 			emsg("Fail|Substitute pattern matching failed");
 		} else if (repl_count > 1) {
-			sprintf(string, "%d subs|%d substitutions", repl_count, repl_count);
-			msg(string);
+			msg(std::format("{} subs|{} substitutions", repl_count, repl_count).c_str());
 		}
 		return;
 	} else if (!strncmp("global", cmdname, len) && CMDLNG(6,1)) {
@@ -289,10 +289,8 @@ docmdline(const char *cmdline)
 		            return;
 		        }
 		        *p = '\0';
-		        strcpy (oldbuf, c_argv[0]);
-		        strcat (oldbuf, name);
-		        strcat (oldbuf, p + 1);
-				c_argv[0] = oldbuf;
+		        oldbuf = std::string(c_argv[0]) + name + (p + 1);
+				c_argv[0] = oldbuf.data();
 		    }
 		}
 		if (name == nullptr && c_argc != 0) name = strdup(c_argv[0]);
@@ -305,8 +303,7 @@ docmdline(const char *cmdline)
 			} else {
 				if (!stat(c_argv[0], &buf)) {
 					if (saveflag == WRITE) {
-						sprintf(string, "File exists@- use \"%s! %s\" to overwrite", cmdname, c_argv[0]);
-						emsg(string);
+						emsg(std::format("File exists@- use \"{}! {}\" to overwrite", cmdname, c_argv[0]).c_str());
 						return;
 					} else {		/* APPEND */
 /* We can only append to a regular file! */
@@ -353,14 +350,14 @@ docmdline(const char *cmdline)
 		}
 	} else if (!strncmp("args", cmdname, len) && CMDLNG(4, 2)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		string[0] = '\0';
+		std::string args;
 		for (n = 0; n < numfiles; n++) {
-			if (n == curfile) strcat(string, "[");
-			strcat(string, files[n]);
-			if (n == curfile) strcat(string, "]");
-			strcat(string, " ");
+			if (n == curfile) args += '[';
+			args += files[n];
+			if (n == curfile) args += ']';
+			args += ' ';
 		}
-		msg(string);
+		msg(args.c_str());
 	} else if (!strncmp("source", cmdname, len) && CMDLNG(6, 2)) {
 		if (chk_comm(NO_ADDR|ONE_FILE)) return;
 		if (read_rc(c_argv[0])) sysemsg(c_argv[0]);
@@ -373,15 +370,14 @@ docmdline(const char *cmdline)
 					save(name, mem, maxpos, WRITE);
 					edits = 0;
 				} else {
-					sprintf(string, nowrtmsg, "cd");
-					emsg(string);
+					emsg(std::format("No write@since last change (:{}! overrides)", "cd").c_str());
 					return;
 				}
 			}
 		}
+		static char rootdir[] = { DELIM, '\0' };
 		if (c_argc == 0) {
-			sprintf(string, "%c", DELIM);
-			c_argv[0] = string;
+			c_argv[0] = rootdir;
 		}
 		if (chdir(c_argv[0])) sysemsg(c_argv[0]);
 	} else if (!strncmp("edit", cmdname, len) && CMDLNG(4, 1)) {
@@ -422,8 +418,7 @@ docmdline(const char *cmdline)
 					save(name, mem, maxpos, WRITE);
 					edits = 0;
 				} else {
-					sprintf(string, nowrtmsg, "next");
-					emsg(string);
+					emsg(std::format("No write@since last change (:{}! overrides)", "next").c_str());
 					return;
 				}
 			}
@@ -445,8 +440,7 @@ docmdline(const char *cmdline)
 					save(name, mem, maxpos, WRITE);
 					edits = 0;
 				} else {
-					sprintf(string, nowrtmsg, "rewind");
-					emsg(string);
+					emsg(std::format("No write@since last change (:{}! overrides)", "rewind").c_str());
 					return;
 				}
 			}
@@ -472,8 +466,7 @@ docmdline(const char *cmdline)
 		if ((yanked = yd_addr()) == 0L) return;
 		if ((yanked = alloc_buf(yanked, &yank_buf)) == 0L) return;
 		memcpy(yank_buf, start_addr, yanked);
-		sprintf(string, "%lu bytes", (long)yanked);
-		msg(string);
+		msg(std::format("{} bytes", yanked).c_str());
 	} else if (!strncmp("overwrite", cmdname, len) && CMDLNG(9, 1)) {
 		if (chk_comm(NO_ARG)) return;
 		if (!addr_flag) start_addr = current;
@@ -483,8 +476,7 @@ docmdline(const char *cmdline)
 		do_undo();
 	} else if (!strncmp("version", cmdname, len) && CMDLNG(7, 2)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		sprintf(string, "bvi version %s %s", VERSION, copyright);
-		msg(string);
+		msg(std::format("bvi version {} {}", VERSION, copyright).c_str());
 	} else if (!strncmp("shell", cmdname, len) && CMDLNG(5, 2)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		do_shell();
@@ -495,12 +487,10 @@ docmdline(const char *cmdline)
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		if (!force) {
 			if (edits) {
-				sprintf(string, nowrtmsg, "quit");
-				emsg(string);
+				emsg(std::format("No write@since last change (:{}! overrides)", "quit").c_str());
 			} else {
 				if ((curfile + 1) < numfiles) {
-					sprintf(string, "%d %s", numfiles - curfile - 1, morefiles);
-					emsg(string);
+					emsg(std::format("{} {}", numfiles - curfile - 1, morefiles).c_str());
 				} else
 					quit();
 			}
@@ -554,13 +544,12 @@ docmdline(const char *cmdline)
 		if (c_argc != 0) { emsg(extra); return; }
 		do_logic(NOT, "255");
 	} else {
-		sprintf(string, "What?|%s: Not an editor command", cmd);
+		auto errmsg = std::format("What?|{}: Not an editor command", cmd);
 		if B(P_MM) {
 			if (!strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
 				if ((undo_count = yd_addr()) == 0L) return;
 				do_delete(undo_count, start_addr);
-				sprintf(string, "%lu bytes", (long)undo_count);
-				msg(string);
+				msg(std::format("{} bytes", undo_count).c_str());
 			} else if (!strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
 				if (chk_comm(MAX_ONE_ARG)) return;
 				if (!addr_flag) start_addr = current;
@@ -570,7 +559,7 @@ docmdline(const char *cmdline)
 				if (!addr_flag) start_addr = current;
 				do_put(start_addr, yanked, yank_buf);
 			} else {
-				emsg(string);
+				emsg(errmsg.c_str());
 			}
 		} else {
 			if (!strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
@@ -580,7 +569,7 @@ docmdline(const char *cmdline)
 			} else if (!strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
 				movebyte();
 			} else {
-				emsg(string);
+				emsg(errmsg.c_str());
 			}
 		}
 	}
@@ -624,8 +613,7 @@ static bool
 save_chk(const char *fname, const char *start, const char *end, int flags)
 {
    if (B(P_RO)) {
-       sprintf(string, "\"%s\" File is read only", name);
-       emsg(string);
+       emsg(std::format("{}{}{} File is read only", '"', name ? name : "", '"').c_str());
        return false;
    }
    return save(fname, start, end, flags) != 0;
@@ -638,8 +626,7 @@ do_exit()
 		if (!save_chk(name, mem, maxpos - 1L, WRITE)) return;
 	}
 	if ((curfile + 1) < numfiles) {
-		sprintf(string, "%d %s", numfiles - curfile - 1, morefiles);
-		emsg(string);
+		emsg(std::format("{} {}", numfiles - curfile - 1, morefiles).c_str());
 	} else quit();
 }
 
@@ -651,8 +638,7 @@ doecmd(const char *arg, bool force)
 
 	if (*arg == '\0') arg = nullptr;
 	if (!force && edits) {
-		sprintf(string, nowrtmsg, "edit");
-		emsg(string);
+		emsg(std::format("No write@since last change (:{}! overrides)", "edit").c_str());
 		/*
 		if (altfile)
 			free(altfile);
@@ -734,11 +720,7 @@ emsg(const char *s)
 void
 sysemsg(const char *s)
 {
-	char	string[256];
-
-	sprintf(string, "%s: %s", s, strerror(errno));
-
-	emsg(string);
+	emsg(std::format("{}: {}", s, strerror(errno)).c_str());
 }
 
 
