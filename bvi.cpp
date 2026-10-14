@@ -2,7 +2,7 @@
  *
  * 1996-02-28  V 1.0.0
  * 1999-01-27  V 1.1.0
- * 1999-04-22  V 1.1.1 
+ * 1999-04-22  V 1.1.1
  * 1999-07-01  V 1.2.0 beta
  * 1999-10-22  V 1.2.0 final
  * 2000-05-10  V 1.3.0 alpha
@@ -264,7 +264,7 @@ main(int argc, char *argv[])
 	std::signal(SIGINT, SIG_IGN);
 	filesize = load(name);
 
-	bvi_init(argv[0]);
+	bvi_init();
 	S(P_TT) = terminal;
 	if (block_flag && B(P_MM)) {
 		B(P_MM) = false;
@@ -274,7 +274,7 @@ main(int argc, char *argv[])
 		read_rc(argv[script]);
 	if (!cmdstr.empty())
 		docmdline(cmdstr.c_str());
-	
+
 	/* main loop */
 	do {
 		setjmp(env);
@@ -456,9 +456,9 @@ main(int argc, char *argv[])
 					break;
 		case ';':	do_ft(0, false);
 					break;
-		case 'F':	
-		case 'f':	
-		case 't':	
+		case 'F':
+		case 'f':
+		case 't':
 		case 'T':	do_ft(ch, false);
 					break;
 		case 'G':   last_motion = current;
@@ -466,10 +466,10 @@ main(int argc, char *argv[])
 						if ((precount < P(P_OF)) ||
 								(precount - P(P_OF)) > (filesize - 1L)) {
 							beep();
-						} else { 
+						} else {
 							setpage((PTR)(mem + precount - P(P_OF)));
 						}
-					} else { 
+					} else {
 						setpage((PTR)(mem + filesize - 1L));
 					}
 					break;
@@ -991,7 +991,7 @@ range(int ch)
 				- (off_t)P(P_OF)) > (filesize - 1L)) {
 			beep();
 			return 0;
-		} else { 
+		} else {
 			if (mem + count < current) {
 				return(mem + count - current);
 			} else {

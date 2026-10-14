@@ -36,16 +36,16 @@
 #include <cerrno>
 #include <cctype>
 #include <csignal>
-#include <sys/stat.h>
 #include <csetjmp>
 #include <filesystem>
 #include <string>
 #include <string_view>
 
-#define JOEHTG
+#include <sys/stat.h>
 
-#include "patchlevel.h"
-#include "config.h"
+#include "config.hpp"
+#include "version.hpp"
+
 #if defined(HAVE_NCURSES_H)
 #   include <ncurses.h>
 #else
@@ -216,7 +216,7 @@ void	msg(std::string_view s);
 void	emsg(std::string_view s);
 void	smsg(std::string_view s);
 void	usage();
-void	bvi_init(const char *dir);
+void	bvi_init();
 void	statpos();
 void	setcur();
 void	showparms(bool all);
@@ -240,7 +240,7 @@ int		cur_forw(bool check);
 int		cur_back();
 int		lineout();
 int		save(const std::filesystem::path& fname, const char *start, const char *end, int flags);
-int		read_rc(const std::filesystem::path& fn);
+bool read_rc(const std::filesystem::path& path);
 int		getcmdstr(std::string& p, int x);
 int		enlarge(off_t add);
 int		vgetc();

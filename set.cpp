@@ -9,12 +9,12 @@
  * 1999-07-02 V 1.2.0 beta
  * 1999-08-14 V 1.2.0 final
  * 2000-07-15 V 1.3.0 final
- * 2001-10-10 V 1.3.1 
+ * 2001-10-10 V 1.3.1
  * 2003-07-03 V 1.3.2
  * 2010-06-02 V 1.2.4
  * 2014-09-30 V 1.4.0
  *
- * Copyright 1996-2014 by Gerhard Buergmann 
+ * Copyright 1996-2014 by Gerhard Buergmann
  * gerhard@puon.at
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
 
 #include <filesystem>
 #include <format>
-#include <string>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
@@ -199,25 +199,28 @@ showparms(bool all)
 	wait_return(true);
 }
 
-
-/* reads the init file (.bvirc) */
-int
-read_rc(const fs::path& fn)
+/**
+ * Reads the init file. (~/.config/bvi/init.bvi)
+ */
+bool
+read_rc(const std::filesystem::path& path)
 {
-	int i;
+	std::ifstream file(path);
+	std::string line;
 
-	if ((ffp = std::fopen(fn.c_str(), "r")) == nullptr) return -1;
-	from_file = true;
-	while (std::fgets(fbuf, MAXCMD, ffp) != nullptr) {
-		i = std::strlen(fbuf) - 1;
-		while ((i >= 0) && (fbuf[i] == NL || fbuf[i] == CR)) fbuf[i--] = '\0';
-		docmdline(fbuf);
+	if (!file.is_open()) {
+		return false;
 	}
-	std::fclose(ffp);
-	from_file = false;
-	return 0;
-}
 
+	from_file = true;
+	while (std::getline(file, line)) {
+		docmdline(line.c_str());
+	}
+	file.close();
+	from_file = false;
+
+	return true;
+}
 
 int
 do_logic(int mode, const char *str)
@@ -277,13 +280,13 @@ do_logic(int mode, const char *str)
 						b = a >> 8;
 						a |= b;
 						break;
-		case RROTATE:	
+		case RROTATE:
 						b = a << 8;
 						a |= b;
-						a >>= value; 
+						a >>= value;
 						/*
 						b = a << (8 - value);
-						a >>= value; 
+						a >>= value;
 						a |= b;
 						*/
 						break;
@@ -291,7 +294,7 @@ do_logic(int mode, const char *str)
 						break;
 		case OR:		a |= value;
 						break;
-		case XOR:		
+		case XOR:
 		case NOT:		a ^= value;
 						break;
 		case NEG:		a ^= value;

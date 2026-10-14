@@ -8,7 +8,7 @@
  * 1999-09-10 V 1.2.0 final
  * 2000-03-03 V 1.3.0 beta
  * 2000-07-15 V 1.3.0 final
- * 2001-10-10 V 1.3.1  
+ * 2001-10-10 V 1.3.1
  * 2003-07-04 V 1.3.2
  * 2005-08-17 V 1.3.3
  * 2010-06-02 V 1.3.4
@@ -280,7 +280,7 @@ docmdline(const char *cmdline)
 		if ((c_argv[c_argc] = std::strtok(cmd, " \t")) != nullptr) c_argc++;
 		while ((c_argv[c_argc] = std::strtok(nullptr, " \t")) != nullptr) c_argc++;
 
-		if (c_argc > 1) { 
+		if (c_argc > 1) {
 			emsg(ambigous);
 			return; }
 		if (c_argc == 1) {
@@ -364,7 +364,7 @@ docmdline(const char *cmdline)
 		msg(args.c_str());
 	} else if (!std::strncmp("source", cmdname, len) && CMDLNG(6, 2)) {
 		if (chk_comm(NO_ADDR|ONE_FILE)) return;
-		if (read_rc(c_argv[0])) sysemsg(c_argv[0]);
+		if (!read_rc(c_argv[0])) sysemsg(c_argv[0]);
 		refresh();
 	} else if (!std::strncmp("cd", cmdname, len) && CMDLNG(2, 2)) {
 		if (chk_comm(NO_ADDR|ONE_FILE)) return;

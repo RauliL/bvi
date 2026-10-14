@@ -40,16 +40,17 @@
 #include <filesystem>
 #include <string_view>
 
-#include "patchlevel.h"
-#include "config.h"
+#include "version.hpp"
+#include "config.hpp"
+
 #include <unistd.h>
+#include <term.h>
+
 #if defined(HAVE_NCURSES_H)
 #  include <ncurses.h>
 #else
 #  include <curses.h>
 #endif
-#include <term.h>
-
 
 /* defines for filemode */
 #define	ERROR				-1

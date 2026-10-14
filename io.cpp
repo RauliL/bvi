@@ -37,14 +37,7 @@
 #include <string>
 #include <system_error>
 
-#if 0
-/* nowadays (2009) we should make sure that bvi is compiled with LFS support: */
-/* defines _LARGEFILE_SOURCE _FILE_OFFSET_BITS=64 */
-/* if compiled without LFS support, stat() open() lseek() will fail with */
-/* EOVERFLOW(75)   Value too large for defined data type  */
-/* see README for configure arguments to enable lfs support in 32-bit executables */
-/* cygwin enables lfs by default */
-#endif
+#include <peelo/xdg.hpp>
 
 #include <limits.h>
 #	ifndef OFF_T_MAX
@@ -300,37 +293,31 @@ load(const fs::path& fname)
 	return(filesize);
 }
 
-
-/* argument "dir" not used! 
- * Needed for DOS version only
- */
 void
-bvi_init(const char *dir)
+bvi_init()
 {
-	char    *initstr;
+	const auto initstr = std::getenv("BVIINIT");
 
 	terminal = std::getenv("TERM");
 	shell = std::getenv("SHELL");
-	if (shell == nullptr || *shell == '\0')
-		shell = "/bin/sh";
 
-	if ((initstr = std::getenv("BVIINIT")) != nullptr) {
+	if (!shell || *shell == '\0') {
+		shell = "/bin/sh";
+	}
+
+	if (initstr) {
 		docmdline(initstr);
 		return;
 	}
 
-	const char *home = std::getenv("HOME");
-	fs::path rcpath = home ? fs::path(home) / ".bvirc" : fs::path("/.bvirc");
-	if (fs::exists(rcpath) && owned_by_self(rcpath)) {
-		read_rc(rcpath);
-	}
+	if (const auto config_dir = peelo::xdg::config_dir()) {
+		const auto rc = *config_dir / "bvi" / "init.bvi";
 
-	rcpath = ".bvirc";
-	if (fs::exists(rcpath) && owned_by_self(rcpath)) {
-		read_rc(rcpath);
+		if (fs::exists(rc) && owned_by_self(rc)) {
+			read_rc(rc);
+		}
 	}
 }
-
 
 int
 enlarge(off_t add)
@@ -343,13 +330,14 @@ enlarge(off_t add)
 	savemax = maxpos - mem;
 	saveundo = undo_start - mem;
 
-	if (mem == nullptr) {
+	if (!mem) {
 		newmem = static_cast<char*>(std::malloc(memsize + add));
 	} else {
 		newmem = static_cast<char*>(std::realloc(mem, memsize + add));
 	}
-	if (newmem == nullptr) {
+	if (!newmem) {
 		emsg("Out of memory");
+
 		return 1;
 	}
 
@@ -360,6 +348,7 @@ enlarge(off_t add)
 	maxpos = mem + savemax;
 	undo_start = mem + saveundo;
 	current = curpos + 1L;
+
 	return 0;
 }
 
