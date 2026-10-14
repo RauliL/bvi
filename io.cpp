@@ -32,6 +32,9 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <format>
+#include <string>
+
 #if 0
 /* nowadays (2009) we should make sure that bvi is compiled with LFS support: */
 /* defines _LARGEFILE_SOURCE _FILE_OFFSET_BITS=64 */
@@ -65,7 +68,7 @@ int
 save(const char *fname, const char *start, const char *end, int flags)
 {
 	int		fd;
-	char	*string;
+	std::string	status;
 	const char	*newstr;
 	off_t	filesize;
 
@@ -73,28 +76,18 @@ save(const char *fname, const char *start, const char *end, int flags)
 		emsg("No file|No current filename");
 		return 0;
 	}
-	string = static_cast<char*>(malloc((size_t)strlen(fname) + MAXCMD));
-	if (string == nullptr) {
-		emsg("Out of memory");
-		return 0;
-	}
 	if (stat(fname, &buf) == -1) {
 		newstr = "[New file] ";
 	} else {
 		if (S_ISDIR(buf.st_mode)) {
-			sprintf(string, "\"%s\" Is a directory", fname);
-			msg(string);
-			free(string);
+			msg(std::format("{}{}{} Is a directory", '"', fname, '"').c_str());
 			return 0;
 		} else if (S_ISCHR(buf.st_mode)) {
-			sprintf(string, "\"%s\" Character special file", fname);
-			msg(string);
-			free(string);
+			msg(std::format("{}{}{} Character special file", '"', fname, '"').c_str());
 			return 0;
 		} else if (S_ISBLK(buf.st_mode)) {
 			/*
-			sprintf(string, "\"%s\" Block special file", fname);
-			msg(string);
+			msg(... Block special file ...);
 			return 0;
 			*/
 		}
@@ -104,42 +97,34 @@ save(const char *fname, const char *start, const char *end, int flags)
 	if (filemode == PARTIAL) flags = O_RDWR;
 	if ((fd = open(fname, flags, 0666)) < 0) {
         sysemsg(fname);
-		free(string);
 		return 0;
 	}
 	if (filemode == PARTIAL) {
 		if (block_read) {
 			filesize = block_read;
-			sprintf(string, "\"%s\" range %llu-%llu", fname,
-				(unsigned long long)block_begin,
-				(unsigned long long)(block_begin - 1 + filesize));
+			status = std::format("{}{}{} range {}-{}", '"', fname, '"',
+				block_begin, block_begin - 1 + filesize);
 			if (lseek(fd, block_begin, SEEK_SET) < 0) {
 				sysemsg(fname);
-				free(string);
 				return 0;
 			}
 		} else {
 			msg("Null range");
-			free(string);
 			return 0;
         }
 	} else {
 		filesize = end - start + 1L;
-
-		sprintf(string, "\"%s\" %s%llu bytes", fname, newstr,
-			(unsigned long long)filesize);
+		status = std::format("{}{}{} {}{} bytes", '"', fname, '"', newstr, filesize);
 	}
 
 	if (write(fd, start, filesize) != filesize) {
 		sysemsg(fname);
-		free(string);
 		close(fd);
 		return 0;
 	}
 	close(fd);
 	edits = 0;
-	msg(string);
-	free(string);
+	msg(status.c_str());
 	return 1;
 }
 
@@ -149,7 +134,7 @@ off_t
 load(const char *fname)
 {
 	int		fd = -1;
-	char	*string;
+	std::string	status;
 
 	buf.st_size = 0L;
 	if (fname != nullptr) {
@@ -238,34 +223,23 @@ load(const char *fname)
 	}
 	clear_marks();
 
-	if (fname != nullptr) {
-		string = static_cast<char*>(malloc((size_t)strlen(fname) + MAXCMD));
-	} else {
-		string = static_cast<char*>(malloc(MAXCMD));
-	}
-	if (string == nullptr) {
-		emsg("Out of memory");
-		return 0;
-	}
-
 	if (block_flag && ((filemode == REGULAR) || (filemode == BLOCK_SPECIAL))) {
 		if (lseek(fd, block_begin, SEEK_SET) < 0) {
 			sysemsg(fname);
 			filemode = ERROR;
 		} else {
 			if ((filesize = read(fd, mem, block_size)) == 0) {
-				sprintf(string, "\"%s\" Empty file", fname);
+				status = std::format("{}{}{} Empty file", '"', fname, '"');
 				filemode = ERROR;
 			} else {
-				sprintf(string, "\"%s\" range %llu-%llu", fname,
-					(unsigned long long)block_begin,
-					(unsigned long long)(block_begin + filesize - 1));
+				status = std::format("{}{}{} range {}-{}", '"', fname, '"',
+					block_begin, block_begin + filesize - 1);
 				filemode = PARTIAL;
 				block_read = filesize;
 				P(P_OF) = block_begin;
 				params[P_OF].changed = true;
 			}
-			msg(string);
+			msg(status.c_str());
 			refresh();
 		}
 	} else if ((filemode == REGULAR) || (filemode == DIRECTORY)) {
@@ -281,31 +255,29 @@ load(const char *fname)
 	if (fname != nullptr) {
 		switch (filemode) {
 		case NEW:
-			sprintf(string, "\"%s\" [New File]", fname);
+			status = std::format("{}{}{} [New File]", '"', fname, '"');
 			break;
 		case REGULAR:
-			sprintf(string, "\"%s\" %s%llu bytes", fname,
-				B(P_RO) ? "[Read only] " : "",
-				(unsigned long long)filesize);
+			status = std::format("{}{}{} {}{} bytes", '"', fname, '"',
+				B(P_RO) ? "[Read only] " : "", filesize);
 			break;
 		case DIRECTORY:
-			sprintf(string, "\"%s\" Directory", fname);
+			status = std::format("{}{}{} Directory", '"', fname, '"');
 			break;
 		case CHARACTER_SPECIAL:
-			sprintf(string, "\"%s\" Character special file", fname);
+			status = std::format("{}{}{} Character special file", '"', fname, '"');
 			break;
 		case BLOCK_SPECIAL:
-			sprintf(string, "\"%s\" Block special file", fname);
+			status = std::format("{}{}{} Block special file", '"', fname, '"');
 			break;
 		}
-		if (filemode != ERROR) msg(string);
+		if (filemode != ERROR) msg(status.c_str());
 	}
 	pagepos = mem;
 	maxpos = mem + filesize;
 	loc = HEX;
 	x = AnzAdd; y = 0;
 	repaint();
-	free(string);
 	return(filesize);
 }
 
@@ -317,7 +289,6 @@ void
 bvi_init(const char *dir)
 {
 	char    *initstr;
-	char    rcpath[MAXCMD];
 
 	terminal = getenv("TERM");
 	shell = getenv("SHELL");
@@ -328,17 +299,16 @@ bvi_init(const char *dir)
 		docmdline(initstr);
 		return;
 	}
-	
-	strncpy(rcpath, getenv("HOME"), MAXCMD - 8);
-	rcpath[MAXCMD - 8] = '\0';
-	strcat(rcpath, "/.bvirc");
-	if (stat(rcpath, &buf) == 0) {
-		if (buf.st_uid == getuid()) read_rc(rcpath);
+
+	const char *home = getenv("HOME");
+	std::string rcpath = home ? std::string(home) + "/.bvirc" : "/.bvirc";
+	if (stat(rcpath.c_str(), &buf) == 0) {
+		if (buf.st_uid == getuid()) read_rc(rcpath.c_str());
 	}
 
-	strcpy(rcpath, ".bvirc");
-	if (stat(rcpath, &buf) == 0) {
-		if (buf.st_uid == getuid())	read_rc(rcpath);
+	rcpath = ".bvirc";
+	if (stat(rcpath.c_str(), &buf) == 0) {
+		if (buf.st_uid == getuid())	read_rc(rcpath.c_str());
 	}
 }
 
