@@ -174,7 +174,6 @@ extern  off_t   block_begin, block_end, block_size;
 
 int		addfile(const std::filesystem::path& fname);
 off_t	alloc_buf(off_t n, char **buffer);
-off_t	yd_addr();
 off_t	range(int ch);
 off_t	calc_size(const char *arg);
 void	do_mark(int mark, PTR addr);
@@ -183,8 +182,7 @@ void	do_back(off_t n, PTR start);
 void	do_ins_chg(PTR start, const char *arg, int mode);
 void	jmpproc(int sig);
 void	printline(PTR mempos, int scpos);
-int		chk_comm(int flag);
-void	docmdline(const char *cmdline);
+void	docmdline(const std::string& cmdline);
 void	do_over(PTR loc, off_t n, const char *buf);
 void	do_put(PTR loc, off_t n, const char *buf);
 bool	doecmd(const char *arg, bool force);

@@ -273,7 +273,7 @@ main(int argc, char *argv[])
 	if (script > -1)
 		read_rc(argv[script]);
 	if (!cmdstr.empty())
-		docmdline(cmdstr.c_str());
+		docmdline(cmdstr);
 
 	/* main loop */
 	do {
@@ -396,7 +396,7 @@ main(int argc, char *argv[])
 					refresh();
 					getcmdstr(cmdstr, 1);
 					if (!cmdstr.empty())
-						docmdline(cmdstr.c_str());
+						docmdline(cmdstr);
 					break;
 		case BVICTRL('B'):
 		case KEY_PPAGE: 	/**** Previous Page ****/

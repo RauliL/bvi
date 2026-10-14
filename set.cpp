@@ -213,7 +213,7 @@ read_rc(const std::filesystem::path& path)
 
 	from_file = true;
 	while (std::getline(file, line)) {
-		docmdline(line.c_str());
+		docmdline(line);
 	}
 	file.close();
 	from_file = false;

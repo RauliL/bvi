@@ -35,10 +35,13 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <functional>
 #include <filesystem>
 #include <format>
 #include <string>
 #include <system_error>
+#include <unordered_map>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -53,7 +56,6 @@ namespace fs = std::filesystem;
 #define WRITE (O_WRONLY|O_CREAT|O_TRUNC)
 #define APPEND (O_WRONLY|O_APPEND)
 
-#define	CMDSZ	256		/* size of the command buffer */
 #define MAXNAME	10		/* size of a : command name */
 
 #define NO_ADDR			1
@@ -64,8 +66,7 @@ namespace fs = std::filesystem;
 #define	MAX_ONE_FILE	128
 
 static	fs::path	altfile;	/* alternate file */
-static	int		c_argc = 0;
-static	char	*c_argv[9];
+static	std::string	oldbuf;		/** for :!! command **/
 
 const char	*morefiles = "more files@to edit";
 const char	*ambigous  = "Ambigous|Too many file names";
@@ -83,10 +84,546 @@ extern	char	**files;		/* used for "next" and "rewind" */
 extern	int		numfiles, curfile;
 extern	int		errno;
 
-static	std::string	oldbuf;		/** for :!! command **/
+struct CmdState {
+	std::string name;			/* command name without ! */
+	std::string rest;			/* text after command name / ! */
+	std::string first_token;		/* first whitespace token of the command */
+	std::vector<std::string> args;
+	bool force = false;
+};
+
+using CmdHandler = std::function<void(CmdState&)>;
 
 static bool save_chk(const fs::path&, const char*, const char*, int);
+static off_t yd_addr(CmdState& st);
+static int chk_comm(CmdState& st, int flag);
 
+static void
+split_args(CmdState& st, std::string text)
+{
+	st.args.clear();
+	st.first_token.clear();
+
+	auto pos = text.find_first_not_of(" \t");
+	if (pos == std::string::npos) {
+		return;
+	}
+	text.erase(0, pos);
+
+	auto end = text.find_first_of(" \t");
+	st.first_token = text.substr(0, end);
+	if (end == std::string::npos) {
+		return;
+	}
+
+	pos = text.find_first_not_of(" \t", end);
+	while (pos != std::string::npos) {
+		end = text.find_first_of(" \t", pos);
+		st.args.push_back(text.substr(pos, end - pos));
+		if (end == std::string::npos) {
+			break;
+		}
+		pos = text.find_first_not_of(" \t", end);
+	}
+}
+
+static void
+cmd_substitute(CmdState& st)
+{
+	const char *rest = st.rest.c_str();
+	repl_count = do_substitution(*rest, rest + 1, start_addr, end_addr);
+	if (repl_count == -1) {
+		emsg("No previous substitute re|No previous substitute regular expression");
+		return;
+	}
+	repaint();
+	if (!repl_count) {
+		emsg("Fail|Substitute pattern matching failed");
+	} else if (repl_count > 1) {
+		msg(std::format("{} subs|{} substitutions", repl_count, repl_count).c_str());
+	}
+}
+
+static void
+cmd_global(CmdState& st)
+{
+	const char *rest = st.rest.c_str();
+	current = start_addr - 1;
+	repl_count = 0;
+	addch('\n');
+	while ((current = searching(*rest, rest + 1, current,
+						end_addr, false|S_GLOBAL)) != 0L) {
+		addch('\n');
+		printline(current, maxy - 1);
+		repl_count++;
+		if (repl_count == LINES - 2) {
+			if (wait_return(false)) return;
+			repl_count = 0;
+		}
+	}
+	if (repl_count) {
+		wait_return(true);
+	} else {
+		repaint();
+		emsg(notfound);
+	}
+}
+
+static void
+cmd_write(CmdState& st)
+{
+	int saveflag;
+	int ok = 0;
+	char *cmd = st.rest.data();
+
+	SKIP_WHITE
+	if (*cmd == '>') {
+		if (*(++cmd) == '>') {
+			cmd++;
+			saveflag = APPEND;
+		} else {
+			emsg("Write forms are 'w' and 'w>>'");
+			return;
+		}
+	} else if (*cmd == '!') {
+		emsg("Not yet implemented");
+		return;
+	} else {
+		saveflag = WRITE;
+	}
+	SKIP_WHITE
+
+	st.args.clear();
+	{
+		std::string args{cmd};
+		auto pos = args.find_first_not_of(" \t");
+		while (pos != std::string::npos) {
+			auto end = args.find_first_of(" \t", pos);
+			st.args.push_back(args.substr(pos, end - pos));
+			if (end == std::string::npos) {
+				break;
+			}
+			pos = args.find_first_not_of(" \t", end);
+		}
+	}
+
+	if (st.args.size() > 1) {
+		emsg(ambigous);
+		return;
+	}
+	if (st.args.size() == 1) {
+		/* change '%' to Filename */
+		std::string& arg = st.args[0];
+		for (size_t i = 0; i < arg.size(); ++i) {
+			if (arg[i] == '%' && (i == 0 || arg[i - 1] != '\\')) {
+				if (name.empty()) {
+					emsg("No filename@to substitute for %");
+					return;
+				}
+				arg.replace(i, 1, name.string());
+				i += name.string().size() - 1;
+			}
+		}
+	}
+	if (name.empty() && !st.args.empty()) name = st.args[0];
+	if (st.force) {
+		if (st.args.empty()) ok = save(name, start_addr, end_addr, saveflag);
+			else	ok = save(st.args[0], start_addr, end_addr, saveflag);
+	} else {
+		if (st.args.empty()) {
+			save_chk(name, start_addr, end_addr, saveflag);
+		} else {
+			std::error_code ec;
+			const auto fstatus = fs::status(st.args[0], ec);
+			if (fs::exists(fstatus)) {
+				if (saveflag == WRITE) {
+					emsg(std::format("File exists@- use \"{}! {}\" to overwrite", st.name, st.args[0]));
+					return;
+				} else {		/* APPEND */
+/* We can only append to a regular file! */
+					if (fs::is_regular_file(fstatus)) {
+						if (filemode == PARTIAL) filemode = REGULAR;
+					} else if (fs::is_block_file(fstatus)) {
+						emsg("Cannot append to a block special file");
+						return;
+					}
+					ok = save(st.args[0], start_addr, end_addr, saveflag);
+				}
+			} else {
+				if (saveflag == APPEND) {
+					emsg("No such file");
+					return;
+				} else {		/* WRITE */
+/* If we write the block of a partial file to a new file, it will
+ * become a regular file!
+ */
+					if (filemode == PARTIAL) filemode = REGULAR;
+					ok = save(st.args[0], start_addr, end_addr, saveflag);
+				}
+			}
+		}
+	}
+	if (st.name == "wq" && ok) {
+		quit();
+	}
+}
+
+static void
+cmd_set(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR)) return;
+	if (st.args.empty()) {
+		doset(nullptr);
+	} else {
+		for (const auto& arg : st.args) {
+			if (doset(arg.c_str())) return;
+		}
+	}
+}
+
+static void
+cmd_args(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	std::string args;
+	for (int n = 0; n < numfiles; n++) {
+		if (n == curfile) args += '[';
+		args += files[n];
+		if (n == curfile) args += ']';
+		args += ' ';
+	}
+	msg(args.c_str());
+}
+
+static void
+cmd_source(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|ONE_FILE)) return;
+	if (!read_rc(st.args[0])) sysemsg(st.args[0]);
+	refresh();
+}
+
+static void
+cmd_cd(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|ONE_FILE)) return;
+	if (!st.force) {
+		if (edits) {
+			if (B(P_AW)) {
+				save(name, mem, maxpos, WRITE);
+				edits = 0;
+			} else {
+				emsg(std::format("No write@since last change (:{}! overrides)", "cd").c_str());
+				return;
+			}
+		}
+	}
+	std::error_code ec;
+	fs::current_path(st.args[0], ec);
+	if (ec) sysemsg(st.args[0]);
+}
+
+static void
+cmd_edit(CmdState& st)
+{
+/*
+ * The command ":e#" gets expanded to something like ":efile", so
+ * detect that case here.
+ */
+	if (!st.first_token.empty() && st.first_token[0] == 'e' && st.args.empty()) {
+		if (st.first_token.size() > 1 && st.first_token[1] == '!')
+			(void) doecmd(st.first_token.c_str() + 2, true);
+		else
+			(void) doecmd(st.first_token.c_str() + 1, false);
+		return;
+	}
+	if (chk_comm(st, NO_ADDR|MAX_ONE_FILE)) return;
+	doecmd(st.args.empty() ? nullptr : st.args[0].c_str(), st.force);
+}
+
+static void
+cmd_file(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|MAX_ONE_FILE)) return;
+	if (!st.args.empty()) name = st.args[0];
+	fileinfo(name);
+}
+
+static void
+cmd_read(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|MAX_ONE_FILE)) return;
+	/* read reads a file at EOF */
+	if (!addfile(st.args.empty() ? name : fs::path(st.args[0]))) {
+		edits = U_TRUNC;
+		undosize = filesize;
+		repaint();
+	}
+}
+
+static void
+cmd_xit(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	do_exit();
+}
+
+static void
+cmd_next(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	if (!st.force) {
+		if (edits) {
+			if (B(P_AW)) {
+				save(name, mem, maxpos, WRITE);
+				edits = 0;
+			} else {
+				emsg(std::format("No write@since last change (:{}! overrides)", "next").c_str());
+				return;
+			}
+		}
+	}
+	if ((curfile + 1) < numfiles) {
+		if (st.force)  stuffin(":e! ");
+		else		stuffin(":e ");
+		stuffin(files[++curfile]);
+		stuffin("\n");
+	} else
+		emsg("No more files@to edit!");
+}
+
+static void
+cmd_rewind(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	if (numfiles <= 1)		/* nothing to rewind */
+		return;
+	if (!st.force) {
+		if (edits) {
+			if (B(P_AW)) {
+				save(name, mem, maxpos, WRITE);
+				edits = 0;
+			} else {
+				emsg(std::format("No write@since last change (:{}! overrides)", "rewind").c_str());
+				return;
+			}
+		}
+	}
+	curfile = 0;
+	if (st.force)	stuffin(":e! ");
+		else	stuffin(":e ");
+	stuffin(files[0]);
+	stuffin("\n");
+}
+
+static void
+cmd_append(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|MAX_ONE_ARG)) return;
+	do_ins_chg(start_addr, st.args.size() == 1 ? st.args[0].c_str() : "a", U_APPEND);
+}
+
+static void
+cmd_change(CmdState& st)
+{
+	if (chk_comm(st, MAX_ONE_ARG)) return;
+	if (!addr_flag) start_addr = current;
+	do_ins_chg(start_addr, st.args.size() == 1 ? st.args[0].c_str() : "a", U_EDIT);
+}
+
+static void
+cmd_mark(CmdState& st)
+{
+	if (st.args.empty()) { emsg("Mark what?"); return; }
+	if (st.args.size() > 1 || st.args[0].size() > 1) { emsg(extra); return; }
+	if (!addr_flag) start_addr = current;
+	do_mark(st.args[0][0], start_addr);
+}
+
+static void
+cmd_yank(CmdState& st)
+{
+	if ((yanked = yd_addr(st)) == 0L) return;
+	if ((yanked = alloc_buf(yanked, &yank_buf)) == 0L) return;
+	std::memcpy(yank_buf, start_addr, yanked);
+	msg(std::format("{} bytes", yanked).c_str());
+}
+
+static void
+cmd_overwrite(CmdState& st)
+{
+	if (chk_comm(st, NO_ARG)) return;
+	if (!addr_flag) start_addr = current;
+	do_over(start_addr, yanked, yank_buf);
+}
+
+static void
+cmd_undo(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	do_undo();
+}
+
+static void
+cmd_version(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	msg(std::format("bvi version {} {}", VERSION, copyright).c_str());
+}
+
+static void
+cmd_shell(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	do_shell();
+	clear();
+	repaint();
+	clearstr();
+}
+
+static void
+cmd_quit(CmdState& st)
+{
+	if (chk_comm(st, NO_ADDR|NO_ARG)) return;
+	if (!st.force) {
+		if (edits) {
+			emsg(std::format("No write@since last change (:{}! overrides)", "quit").c_str());
+		} else {
+			if ((curfile + 1) < numfiles) {
+				emsg(std::format("{} {}", numfiles - curfile - 1, morefiles).c_str());
+			} else
+				quit();
+		}
+	} else quit();
+}
+
+static void
+cmd_logic_op(CmdState& st, int mode, bool default_one, bool require_arg)
+{
+	if (st.args.size() == 1) {
+		do_logic(mode, st.args[0].c_str());
+	} else if (st.args.empty()) {
+		if (default_one) {
+			do_logic(mode, "1");
+		} else if (require_arg) {
+			emsg(noval);
+		}
+	} else {
+		emsg(ambvalue);
+	}
+}
+
+static void
+cmd_neg(CmdState& st)
+{
+	if (!st.args.empty()) { emsg(extra); return; }
+	do_logic(NEG, "255");
+}
+
+static void
+cmd_not(CmdState& st)
+{
+	if (!st.args.empty()) { emsg(extra); return; }
+	do_logic(NOT, "255");
+}
+
+static void
+cmd_delete(CmdState& st)
+{
+	if (!B(P_MM)) {
+		movebyte();
+		return;
+	}
+	if ((undo_count = yd_addr(st)) == 0L) return;
+	do_delete(undo_count, start_addr);
+	msg(std::format("{} bytes", undo_count).c_str());
+}
+
+static void
+cmd_insert(CmdState& st)
+{
+	if (!B(P_MM)) {
+		movebyte();
+		return;
+	}
+	if (chk_comm(st, MAX_ONE_ARG)) return;
+	if (!addr_flag) start_addr = current;
+	do_ins_chg(start_addr - 1, st.args.size() == 1 ? st.args[0].c_str() : "a", U_INSERT);
+}
+
+static void
+cmd_put(CmdState& st)
+{
+	if (!B(P_MM)) {
+		movebyte();
+		return;
+	}
+	if (chk_comm(st, NO_ARG)) return;
+	if (!addr_flag) start_addr = current;
+	do_put(start_addr, yanked, yank_buf);
+}
+
+/*
+ * Build the colon-command table. Abbreviations are registered in the same
+ * priority order as the old if/else chain: first registration wins.
+ */
+static std::unordered_map<std::string, CmdHandler>
+make_cmd_map()
+{
+	std::unordered_map<std::string, CmdHandler> map;
+
+	auto add = [&](const char* name, int min_len, CmdHandler fn) {
+		const size_t n = std::strlen(name);
+		for (size_t len = static_cast<size_t>(min_len); len <= n; ++len) {
+			map.emplace(std::string(name, len), fn);
+		}
+	};
+
+	add("substitute", 1, cmd_substitute);
+	add("global", 1, cmd_global);
+	add("write", 1, cmd_write);
+	map.emplace("wq", cmd_write);
+	add("set", 2, cmd_set);
+	add("args", 2, cmd_args);
+	add("source", 2, cmd_source);
+	add("cd", 2, cmd_cd);
+	add("edit", 1, cmd_edit);
+	add("file", 1, cmd_file);
+	add("read", 1, cmd_read);
+	add("xit", 1, cmd_xit);
+	add("next", 1, cmd_next);
+	add("rewind", 3, cmd_rewind);
+	add("append", 1, cmd_append);
+	add("change", 1, cmd_change);
+	add("mark", 2, cmd_mark);
+	add("yank", 1, cmd_yank);
+	add("overwrite", 1, cmd_overwrite);
+	add("undo", 1, cmd_undo);
+	add("version", 2, cmd_version);
+	add("shell", 2, cmd_shell);
+	add("quit", 1, cmd_quit);
+	add("sleft", 2, [](CmdState& st){ cmd_logic_op(st, LSHIFT, true, false); });
+	add("sright", 2, [](CmdState& st){ cmd_logic_op(st, RSHIFT, true, false); });
+	add("rleft", 2, [](CmdState& st){ cmd_logic_op(st, LROTATE, true, false); });
+	add("rright", 2, [](CmdState& st){ cmd_logic_op(st, RROTATE, true, false); });
+	add("and", 3, [](CmdState& st){ cmd_logic_op(st, AND, false, true); });
+	add("or", 2, [](CmdState& st){ cmd_logic_op(st, OR, false, true); });
+	add("xor", 3, [](CmdState& st){ cmd_logic_op(st, XOR, false, true); });
+	add("neg", 3, cmd_neg);
+	add("not", 3, cmd_not);
+	add("delete", 1, cmd_delete);
+	add("insert", 1, cmd_insert);
+	add("put", 2, cmd_put);
+
+	return map;
+}
+
+static const std::unordered_map<std::string, CmdHandler>&
+cmd_map()
+{
+	static const auto map = make_cmd_map();
+	return map;
+}
 
 /*
  * docmdline() - handle a colon command
@@ -95,26 +632,13 @@ static bool save_chk(const fs::path&, const char*, const char*, int);
  * the environment variable "BVIINIT" (or eventually .bvirc).
  */
 void
-docmdline(const char *cmdline)
+docmdline(const std::string& cmdline)
 {
-	char	buff[CMDSZ];
-	char	cmdbuf[CMDSZ];
-	char	cmdname[MAXNAME];
-	char	*cmd;
-	char	*p;
-	size_t	len;
-	int		n, ok;
-	bool		force = false;
-	int		saveflag;
+	if (cmdline.empty() || cmdline[0] == '"') return; 	/** comment **/
 
-	if (*cmdline == '\0') return;
-	if (*cmdline == '"') return; 	/** comment **/
-	if (std::strlen(cmdline) > CMDSZ - 2) {
-		emsg("Command too long");
-		return;
-	}
-	std::strcpy(buff, cmdline);
-	cmd = buff;
+	CmdState st;
+	std::string buff = cmdline;
+	char *cmd = buff.data();
 
 /* With no address given, we start at the beginning of the file and
  * go to the end of the file (not line like in vi).
@@ -167,23 +691,25 @@ docmdline(const char *cmdline)
 		setpage(end_addr);
 		return;
 	}
-	std::strcpy(cmdbuf, cmd);	/* save the unmodified command */
+
+	std::string cmdbuf = cmd;	/* save the unmodified command */
 
 	if (*cmd == '!') {
-		if (*(cmdbuf + 1) == '\0') {
+		if (cmdbuf.size() == 1) {
 			emsg("Incomplete shell escape command@- use 'shell' to get a shell");
 			return;
-			}
-		if (*(cmdbuf + 1) == '!') {
+		}
+		if (cmdbuf[1] == '!') {
 			if (!oldbuf.empty()) {
-				std::strncpy(cmdbuf + 1, oldbuf.c_str(), CMDSZ - 2);
-				cmdbuf[CMDSZ - 1] = '\0';
+				cmdbuf = "!" + oldbuf;
 				msg(oldbuf.c_str());
 			} else {
 				emsg("No previous command@to substitute for !");
 				return;
 			}
-		} else	oldbuf = std::format("\n{}\n", cmdbuf + 1);
+		} else {
+			oldbuf = std::format("\n{}\n", cmdbuf.c_str() + 1);
+		}
 
 		if (B(P_AW)) {
 			save(name, mem, maxpos, WRITE);
@@ -192,7 +718,7 @@ docmdline(const char *cmdline)
 		if (edits) msg("[No write]|[No write since last change]");
 		savetty();
 		endwin();
-		std::system(cmdbuf + 1);
+		std::system(cmdbuf.c_str() + 1);
 		std::fprintf(stderr, "[Hit return to continue]");
 		std::getchar();
 		doupdate();
@@ -201,393 +727,48 @@ docmdline(const char *cmdline)
 		return;
 	}
 
-	n = 0;
 	while (*cmd >= 'a' && *cmd <= 'z') {
-		cmdname[n++] = *cmd++;
-		if (n == MAXNAME)  {
+		st.name.push_back(*cmd++);
+		if (st.name.size() == MAXNAME)  {
 			emsg(std::format("What?|{}: Not an editor command", cmdbuf).c_str());
 			return;
 		}
 	}
-	cmdname[n] = '\0';
 	if (*cmd == '!') {
-		force = true;
+		st.force = true;
 		cmd++;
 	}
-	len = std::strlen(cmdname);
 	SKIP_WHITE
+	st.rest = cmd;
 
-	if (!std::strncmp("substitute", cmdname, len) && CMDLNG(10,1)) {
-		repl_count = do_substitution(*cmd, cmd + 1, start_addr, end_addr);
-		if (repl_count == -1) {
-			emsg("No previous substitute re|No previous substitute regular expression");
-			return;	/* No prev subst */
-		}
-		repaint();
-		if (!repl_count) {
-			emsg("Fail|Substitute pattern matching failed");
-		} else if (repl_count > 1) {
-			msg(std::format("{} subs|{} substitutions", repl_count, repl_count).c_str());
-		}
-		return;
-	} else if (!std::strncmp("global", cmdname, len) && CMDLNG(6,1)) {
-		current = start_addr - 1;
-		repl_count = 0;
-		addch('\n');
-		while ((current = searching(*cmd, cmd + 1, current,
-							end_addr, false|S_GLOBAL)) != 0L) {
-			addch('\n');
-			printline(current, maxy - 1);
-			repl_count++;
-			if (repl_count == LINES - 2) {
-				if (wait_return(false)) return;
-				repl_count = 0;
-			}
-		}
-		if (repl_count) {
-			wait_return(true);
-		} else {
-			repaint();
-			emsg(notfound);
-		}
-		return;
-	} else if (cmdname[0] == 't') {
-        if (!addr_flag) start_addr = current;
-        cmd = cmdname + 1L;
-        SKIP_WHITE
-        do_mark(*cmd, start_addr);
-        return;
-	}
+	split_args(st, cmdbuf);
 
-	if ((!std::strncmp("write", cmdname, len) && CMDLNG(5,1)) || !std::strcmp("wq", cmdname)) {
-		if (*cmd == '>') {
-			if (*(++cmd) == '>') {
-				cmd++;
-				saveflag = APPEND;
-			} else {
-				emsg("Write forms are 'w' and 'w>>'");
-				return;
-			}
-		} else if (*cmd == '!') {
-			emsg("Not yet implemented");
-			return;
-		} else {
-			saveflag = WRITE;
-		}
-		SKIP_WHITE
-
-		c_argc = 0;
-		if ((c_argv[c_argc] = std::strtok(cmd, " \t")) != nullptr) c_argc++;
-		while ((c_argv[c_argc] = std::strtok(nullptr, " \t")) != nullptr) c_argc++;
-
-		if (c_argc > 1) {
-			emsg(ambigous);
-			return; }
-		if (c_argc == 1) {
-		    /* change '%' to Filename */
-		    while ((p = std::strchr(c_argv[0], '%')) != nullptr && *(p-1) != '\\') {
-		        if (name.empty()) {
-		            emsg("No filename@to substitute for %");
-		            return;
-		        }
-		        *p = '\0';
-		        oldbuf = std::string(c_argv[0]) + name.string() + (p + 1);
-				c_argv[0] = oldbuf.data();
-		    }
-		}
-		if (name.empty() && c_argc != 0) name = c_argv[0];
-		if (force) {
-			if (c_argc == 0) ok = save(name, start_addr, end_addr, saveflag);
-				else	ok = save(c_argv[0], start_addr, end_addr, saveflag);
-		} else {
-			if (c_argc == 0) {
-				save_chk(name, start_addr, end_addr, saveflag);
-			} else {
-				std::error_code ec;
-				const auto st = fs::status(c_argv[0], ec);
-				if (fs::exists(st)) {
-					if (saveflag == WRITE) {
-						emsg(std::format("File exists@- use \"{}! {}\" to overwrite", cmdname, c_argv[0]));
-						return;
-					} else {		/* APPEND */
-/* We can only append to a regular file! */
-						if (fs::is_regular_file(st)) {
-							if (filemode == PARTIAL) filemode = REGULAR;
-						} else if (fs::is_block_file(st)) {
-							emsg("Cannot append to a block special file");
-							return;
-						}
-						ok = save(c_argv[0], start_addr, end_addr, saveflag);
-					}
-				} else {
-					if (saveflag == APPEND) {
-						emsg("No such file");
-						return;
-					} else {		/* WRITE */
-/* If we write the block of a partial file to a new file, it will
- * become a regular file!
- */
-						if (filemode == PARTIAL) filemode = REGULAR;
-						ok = save(c_argv[0], start_addr, end_addr, saveflag);
-					}
-				}
-			}
-		}
-		if (!std::strcmp("wq", cmdname)) {
-			if (ok) quit();
-		}
+	const auto& map = cmd_map();
+	const auto it = map.find(st.name);
+	if (it != map.end()) {
+		it->second(st);
 		return;
 	}
 
-	c_argc = 0;
-	cmd = std::strtok(cmdbuf, " \t");
-	while ((c_argv[c_argc] = std::strtok(nullptr, " \t")) != nullptr) c_argc++;
-
-	if (!std::strncmp("set", cmdname, len) && CMDLNG(3, 2)) {
-		if (chk_comm(NO_ADDR)) return;
-		if (c_argc == 0) {
-			doset(nullptr);
-		} else {
-			for (n = 0; n < c_argc; n++) {
-				if (doset(c_argv[n])) return;
-			}
-		}
-	} else if (!std::strncmp("args", cmdname, len) && CMDLNG(4, 2)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		std::string args;
-		for (n = 0; n < numfiles; n++) {
-			if (n == curfile) args += '[';
-			args += files[n];
-			if (n == curfile) args += ']';
-			args += ' ';
-		}
-		msg(args.c_str());
-	} else if (!std::strncmp("source", cmdname, len) && CMDLNG(6, 2)) {
-		if (chk_comm(NO_ADDR|ONE_FILE)) return;
-		if (!read_rc(c_argv[0])) sysemsg(c_argv[0]);
-		refresh();
-	} else if (!std::strncmp("cd", cmdname, len) && CMDLNG(2, 2)) {
-		if (chk_comm(NO_ADDR|ONE_FILE)) return;
-		if (!force) {
-			if (edits) {
-				if (B(P_AW)) {
-					save(name, mem, maxpos, WRITE);
-					edits = 0;
-				} else {
-					emsg(std::format("No write@since last change (:{}! overrides)", "cd").c_str());
-					return;
-				}
-			}
-		}
-		static char rootdir[] = { DELIM, '\0' };
-		if (c_argc == 0) {
-			c_argv[0] = rootdir;
-		}
-		std::error_code ec;
-		fs::current_path(c_argv[0], ec);
-		if (ec) sysemsg(c_argv[0]);
-	} else if (!std::strncmp("edit", cmdname, len) && CMDLNG(4, 1)) {
-/*
- * The command ":e#" gets expanded to something like ":efile", so
- * detect that case here.
- */
-		if (*cmd == 'e' && c_argc == 0) {
-			if (cmd[1] == '!')
-				(void) doecmd(&cmd[2], true);
-			else
-				(void) doecmd(&cmd[1], false);
-			return;
-		}
-		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
-		doecmd(c_argv[0], force);
-	} else if (!std::strncmp("file", cmdname, len) && CMDLNG(4, 1)) {
-		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
-		if (c_argc != 0) name = c_argv[0];
-		fileinfo(name);
-	} else if (!std::strncmp("read", cmdname, len) && CMDLNG(4, 1)) {
-		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
-		/* read reads a file at EOF */
-		if (!addfile(c_argc == 0 ? name : fs::path(c_argv[0]))) {
-			edits = U_TRUNC;
-			undosize = filesize;
-			repaint();
-		}
-	} else if (!std::strncmp("xit", cmdname, len) && CMDLNG(3, 1)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		do_exit();
-	} else if (!std::strncmp("next", cmdname, len) && CMDLNG(4, 1)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		if (!force) {
-			if (edits) {
-				if (B(P_AW)) {
-					save(name, mem, maxpos, WRITE);
-					edits = 0;
-				} else {
-					emsg(std::format("No write@since last change (:{}! overrides)", "next").c_str());
-					return;
-				}
-			}
-		}
-		if ((curfile + 1) < numfiles) {
-			if (force)  stuffin(":e! ");
-			else		stuffin(":e ");
-			stuffin(files[++curfile]);
-			stuffin("\n");
-		} else
-			emsg("No more files@to edit!");
-	} else if (!std::strncmp("rewind", cmdname, len) && CMDLNG(6, 3)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		if (numfiles <= 1)		/* nothing to rewind */
-			return;
-		if (!force) {
-			if (edits) {
-				if (B(P_AW)) {
-					save(name, mem, maxpos, WRITE);
-					edits = 0;
-				} else {
-					emsg(std::format("No write@since last change (:{}! overrides)", "rewind").c_str());
-					return;
-				}
-			}
-		}
-		curfile = 0;
-		if (force)	stuffin(":e! ");
-			else	stuffin(":e ");
-		stuffin(files[0]);
-		stuffin("\n");
-	} else if (!std::strncmp("append", cmdname, len) && CMDLNG(6, 1)) {
-		if (chk_comm(NO_ADDR|MAX_ONE_ARG)) return;
-		do_ins_chg(start_addr, c_argc == 1 ? c_argv[0] : "a", U_APPEND);
-	} else if (!std::strncmp("change", cmdname, len) && CMDLNG(6, 1)) {
-		if (chk_comm(MAX_ONE_ARG)) return;
+	/* :t{a-z} mark shortcut (any unmatched command name starting with t) */
+	if (!st.name.empty() && st.name[0] == 't') {
 		if (!addr_flag) start_addr = current;
-		do_ins_chg(start_addr, c_argc == 1 ? c_argv[0] : "a", U_EDIT);
-	} else if (!std::strncmp("mark", cmdname, len) && CMDLNG(4, 2)) {
-		if (c_argc == 0) { emsg("Mark what?"); return; }
-		if (c_argc > 1 || (std::strlen(c_argv[0]) > 1)) { emsg(extra); return; }
-		if (!addr_flag) start_addr = current;
-		do_mark(c_argv[0][0], start_addr);
-	} else if (!std::strncmp("yank", cmdname, len) && CMDLNG(4, 1)) {
-		if ((yanked = yd_addr()) == 0L) return;
-		if ((yanked = alloc_buf(yanked, &yank_buf)) == 0L) return;
-		std::memcpy(yank_buf, start_addr, yanked);
-		msg(std::format("{} bytes", yanked).c_str());
-	} else if (!std::strncmp("overwrite", cmdname, len) && CMDLNG(9, 1)) {
-		if (chk_comm(NO_ARG)) return;
-		if (!addr_flag) start_addr = current;
-		do_over(start_addr, yanked, yank_buf);
-	} else if (!std::strncmp("undo", cmdname, len) && CMDLNG(4, 1)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		do_undo();
-	} else if (!std::strncmp("version", cmdname, len) && CMDLNG(7, 2)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		msg(std::format("bvi version {} {}", VERSION, copyright).c_str());
-	} else if (!std::strncmp("shell", cmdname, len) && CMDLNG(5, 2)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		do_shell();
-		clear();
-		repaint();
-		clearstr();
-	} else if (!std::strncmp("quit", cmdname, len) && CMDLNG(4, 1)) {
-		if (chk_comm(NO_ADDR|NO_ARG)) return;
-		if (!force) {
-			if (edits) {
-				emsg(std::format("No write@since last change (:{}! overrides)", "quit").c_str());
-			} else {
-				if ((curfile + 1) < numfiles) {
-					emsg(std::format("{} {}", numfiles - curfile - 1, morefiles).c_str());
-				} else
-					quit();
-			}
-		} else quit();
-	} else if (!std::strncmp("sleft", cmdname, len) && CMDLNG(5, 2)) {
-		if (c_argc == 1) {
-			do_logic(LSHIFT, c_argv[0]);
-		} else if (c_argc == 0) {
-			do_logic(LSHIFT, "1");
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strncmp("sright", cmdname, len) && CMDLNG(6, 2)) {
-		if (c_argc == 1) {
-			do_logic(RSHIFT, c_argv[0]);
-		} else if (c_argc == 0) {
-			do_logic(RSHIFT, "1");
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strncmp("rleft", cmdname, len) && CMDLNG(5, 2)) {
-		if (c_argc == 1) {
-			do_logic(LROTATE, c_argv[0]);
-		} else if (c_argc == 0) {
-			do_logic(LROTATE, "1");
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strncmp("rright", cmdname, len) && CMDLNG(6, 2)) {
-		if (c_argc == 1) {
-			do_logic(RROTATE, c_argv[0]);
-		} else if (c_argc == 0) {
-			do_logic(RROTATE, "1");
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strcmp("and", cmdname)) {
-		if (c_argc == 1) {
-			do_logic(AND, c_argv[0]);
-		} else if (c_argc == 0) {
-			emsg(noval); return;
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strcmp("or", cmdname)) {
-		if (c_argc == 1) {
-			do_logic(OR, c_argv[0]);
-		} else if (c_argc == 0) {
-			emsg(noval); return;
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strcmp("xor", cmdname)) {
-		if (c_argc == 1) {
-			do_logic(XOR, c_argv[0]);
-		} else if (c_argc == 0) {
-			emsg(noval); return;
-    	} else { emsg(ambvalue); return; }
-	} else if (!std::strcmp("neg", cmdname)) {
-		if (c_argc != 0) { emsg(extra); return; }
-		do_logic(NEG, "255");
-	} else if (!std::strcmp("not", cmdname)) {
-		if (c_argc != 0) { emsg(extra); return; }
-		do_logic(NOT, "255");
-	} else {
-		auto errmsg = std::format("What?|{}: Not an editor command", cmd);
-		if B(P_MM) {
-			if (!std::strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
-				if ((undo_count = yd_addr()) == 0L) return;
-				do_delete(undo_count, start_addr);
-				msg(std::format("{} bytes", undo_count).c_str());
-			} else if (!std::strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
-				if (chk_comm(MAX_ONE_ARG)) return;
-				if (!addr_flag) start_addr = current;
-				do_ins_chg(start_addr - 1, c_argc == 1 ? c_argv[0] : "a", U_INSERT);
-			} else if (!std::strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
-				if (chk_comm(NO_ARG)) return;
-				if (!addr_flag) start_addr = current;
-				do_put(start_addr, yanked, yank_buf);
-			} else {
-				emsg(errmsg.c_str());
-			}
-		} else {
-			if (!std::strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
-				movebyte();
-			} else if (!std::strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
-				movebyte();
-			} else if (!std::strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
-				movebyte();
-			} else {
-				emsg(errmsg.c_str());
-			}
-		}
+		do_mark(st.name.size() > 1 ? st.name[1] : '\0', start_addr);
+		return;
 	}
+
+	emsg(std::format("What?|{}: Not an editor command", st.first_token.empty()
+		? st.name : st.first_token).c_str());
 }
 
 
 /* calculate address range for :yank and :delete command */
-off_t
-yd_addr()
+static off_t
+yd_addr(CmdState& st)
 {
 	off_t	count = 0;
 
-	if (c_argc == 0) {
+	if (st.args.empty()) {
 		switch (addr_flag) {
 		case 0: start_addr = current;
 		case 1:	count = 1;
@@ -595,8 +776,8 @@ yd_addr()
 		case 2: count = end_addr - start_addr + 1;
 				break;
 		}
-	} else if (c_argc == 1) {
-		count = std::atoi(c_argv[0]);
+	} else if (st.args.size() == 1) {
+		count = std::atoi(st.args[0].c_str());
 		switch (addr_flag) {
 		case 0: start_addr = current;
 		case 1:	end_addr = start_addr + count - 1;
@@ -800,18 +981,18 @@ wait_return(bool flag)
 }
 
 
-int
-chk_comm(int flag)
+static int
+chk_comm(CmdState& st, int flag)
 {
 	if ((flag & NO_ADDR) && (addr_flag > 0)) {
 		emsg(noaddr); return 1; }
-	if ((flag & NO_ARG) && (c_argc > 0)) {
+	if ((flag & NO_ARG) && !st.args.empty()) {
 		emsg(extra); return 1; }
-	if ((flag & MAX_ONE_ARG) && (c_argc > 1)) {
+	if ((flag & MAX_ONE_ARG) && st.args.size() > 1) {
 		emsg(ambvalue); return 1; }
-	if ((flag & ONE_FILE) && (c_argc == 0)) {
+	if ((flag & ONE_FILE) && st.args.empty()) {
 		emsg("Missing filename"); return 1; }
-	if ((flag & MAX_ONE_FILE) && (c_argc > 1)) {
+	if ((flag & MAX_ONE_FILE) && st.args.size() > 1) {
 		emsg(ambigous); return 1; }
 	return 0;
 }
