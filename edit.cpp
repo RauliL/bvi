@@ -84,14 +84,14 @@ edit(int mode)
 		}
 	}
 	if (precount < 1) precount = 1;
-	len = strlen(rep_buf);
+	len = rep_buf.size();
 	if (mode == 'r' && current + precount > maxpos) {
 		beep();
-		rep_buf[len] = '\0';
+		rep_buf.resize(len);
 		return 0L;
 	}
 	if (alloc_buf(buffer, &undo_buf) == 0L) {
-		rep_buf[len] = '\0';
+		rep_buf.resize(len);
 		return 0L;
 	}
 	switch(mode) {
@@ -113,7 +113,8 @@ edit(int mode)
 
 	while((ch = vgetc()) != ESC) {
 		ch &= 0xff;
-		rep_buf[len++] = ch;
+		rep_buf.push_back(static_cast<char>(ch));
+		len = rep_buf.size();
 		if (ch == '\t') {
 			toggle();
 			setcur();
@@ -123,7 +124,8 @@ edit(int mode)
 				|| ch == ASCII_DEL
 				|| ch == BVICTRL('H')) {
 			if (count > 0) {
-				len--;
+				rep_buf.pop_back();
+				len = rep_buf.size();
 				count--;
 				if (mode == 'A' || mode == 'a' || mode == 'i') {
 					filesize--;
@@ -152,13 +154,15 @@ edit(int mode)
 						ch1 = -1;
 					}
 				} while (ch1 == -1);
-				rep_buf[len++] = ch1;
+				rep_buf.push_back(static_cast<char>(ch1));
+				len = rep_buf.size();
 				mvaddch(y, x + 1, ch1);
 				sprintf(tmpbuf, "%c%c", ch, ch1);
 				sscanf(tmpbuf, "%2x", &ch);
 			} else {
 				beep();
-				len--;
+				rep_buf.pop_back();
+				len = rep_buf.size();
 				goto wrong;
 			}
 		} else {			/*** ASCII - Bereich ***/
@@ -186,7 +190,7 @@ edit(int mode)
 		if (count == buffer) {
 			buffer += BUFFER;
 			if (alloc_buf(buffer, &undo_buf) == 0L) {
-				rep_buf[len] = '\0';
+				rep_buf.resize(len);
 				return count;
 			}
 		}
@@ -210,8 +214,7 @@ edit(int mode)
 wrong:
 		continue;
 	}
-	rep_buf[len++] = ESC;
-	rep_buf[len] = '\0';
+	rep_buf.push_back(static_cast<char>(ESC));
 	if (!count) goto escape;
 
 	if (precount > 1) {
@@ -293,7 +296,6 @@ do_ft(int ch, bool flag)
 	static	int	chi;
 	static	int	chp = 1;
 	int		dir;
-	size_t	n;
 	PTR		ptr;
 
 	switch (ch) {
@@ -326,9 +328,7 @@ do_ft(int ch, bool flag)
 						else dir = BACKWARD;
 					chi = vgetc();
 					if (flag) {
-						n = strlen(rep_buf);
-						rep_buf[n++] = chi;
-						rep_buf[n] = '\0';
+						rep_buf.push_back(static_cast<char>(chi));
 					}
 	}
 	ptr = current;
@@ -461,7 +461,7 @@ statpos()
 	unsigned char  Char1;
 	int i;
 	off_t	bytepos;
-	char	string[MAXCMD+1], str[6];
+	std::string str;
 
 	if (!B(P_MO)) return;
 	bytepos = current - mem;
@@ -474,15 +474,13 @@ statpos()
 	Char1 = *(mem + bytepos);
 
 	if (isprint(Char1)) {
-		sprintf(str, "'%c'", Char1);
+		str = std::format("'{}'", static_cast<char>(Char1));
 	} else if (Char1 < 32) {
-		if (B(P_US))	strcpy(str, contru[Char1]);
-			else        strcpy(str, contrd[Char1]);
+		str = B(P_US) ? contru[Char1] : contrd[Char1];
 	} else if (Char1 == 127) {
-		if (B(P_US))    strcpy(str, contru[32]);
-			else        strcpy(str, contrd[32]);
+		str = B(P_US) ? contru[32] : contrd[32];
 	} else {
-		strcpy(str, "   ");
+		str = "   ";
 	}
 	for (i = 0; i < 8; ++i) {
 		if(Char1 & (1<<i)) {
@@ -492,12 +490,13 @@ statpos()
 		}
 	}
 	bin_val[8] = '\0';
-	
-	statsize = sprintf(string, "%08llX %s \\%03o 0x%02X %3d %3s",
-		(long long)(bytepos + P(P_OF)), bin_val, Char1, Char1, Char1, str);
+
+	std::string status_str = std::format("{:08X} {} \\{:03o} 0x{:02X} {:3d} {:3s}",
+		(unsigned long long)(bytepos + P(P_OF)), bin_val, Char1, Char1, Char1, str);
+	statsize = static_cast<int>(status_str.size());
 	attrset(A_BOLD);
 	status = maxx - 1 - statsize;
-	mvaddstr(maxy, status, string);
+	mvaddstr(maxy, status, status_str.c_str());
 	attrset(A_NORMAL);
 }
 
@@ -880,8 +879,8 @@ do_ins_chg(PTR start, const char *arg, int mode)
 		return;
 	}
 	if (alloc_buf(buffer, &tempbuf) == 0L) return;
-	while(strcmp(cmdstr, ".")) {
-		poi = cmdstr;
+	while(cmdstr != ".") {
+		poi = cmdstr.data();
 		if (base == 1) {			/* ASCII */
 			while (*poi != '\0') {
 				if (*poi == '\\') {
@@ -900,8 +899,9 @@ do_ins_chg(PTR start, const char *arg, int mode)
 				*(tempbuf + count++) = val;
 			}
 		} else {
-			while (isspace(cmdstr[strlen(cmdstr) - 1])) 
-				cmdstr[strlen(cmdstr) - 1] = '\0';
+			while (!cmdstr.empty() && isspace(static_cast<unsigned char>(cmdstr.back())))
+				cmdstr.pop_back();
+			poi = cmdstr.data();
 			while (*poi != '\0') {
 				val = strtol(poi, &epoi, base);
 				if (val > 255 || val < 0 || poi == epoi) {

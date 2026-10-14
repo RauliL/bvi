@@ -303,17 +303,18 @@ do_logic(int mode, const char *str)
 
 
 int
-getcmdstr(char *p, int x)
+getcmdstr(std::string& p, int x)
 {
 	int		c;
-	int		i, n;
-	char	*buff, *q;
+	int		n;
 
 	if (from_file) {
-		if (fgets(p, 255, ffp) != nullptr) {
-			// strtok(p, "\n\r");
-			i = strlen(p) - 1;
-			while ((i >= 0) && (p[i] == NL || p[i] == CR)) p[i--] = '\0';
+		char	tmp[MAXCMD+1];
+		if (fgets(tmp, sizeof(tmp), ffp) != nullptr) {
+			size_t i = strlen(tmp);
+			while (i > 0 && (tmp[i - 1] == NL || tmp[i - 1] == CR))
+				tmp[--i] = '\0';
+			p = tmp;
 			return 0;
 		} else {
 			return 1;
@@ -321,7 +322,7 @@ getcmdstr(char *p, int x)
 	}
 
 	signal(SIGINT, jmpproc);
-	buff = p;
+	p.clear();
 	move(maxy, x);
     do {
         switch (c = vgetc()) {
@@ -329,25 +330,24 @@ getcmdstr(char *p, int x)
 		case ASCII_DEL:
 		case KEY_BACKSPACE:
 		case KEY_LEFT:
-            if (p > buff) {
-                p--;
+            if (!p.empty()) {
+                p.pop_back();
 				move(maxy, x);
 				n = x;
-                for (q = buff; q < p ;q++)  {
-                    addch(*q);
+                for (char ch : p)  {
+                    addch(ch);
 					n++;
 				}
 				addch(' ');
 				move(maxy, n);
             } else {
-				*buff = '\0';
                 msg("");
 				signal(SIGINT, SIG_IGN);
                 return 1;
             }
             break;
         case ESC:           /* abandon command */
-			*buff = '\0';
+			p.clear();
             msg("");
 			signal(SIGINT, SIG_IGN);
             return  1;
@@ -364,13 +364,12 @@ getcmdstr(char *p, int x)
             break;
         default:        /* a normal character */
             addch(c);
-            *p++ = c;
+            p.push_back(static_cast<char>(c));
             break;
         }
 		refresh();
     } while (c != NL && c != CR && c != KEY_ENTER);
 
-    *p = '\0';
 	signal(SIGINT, SIG_IGN);
 	return 0;
 }

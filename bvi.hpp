@@ -38,6 +38,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <csetjmp>
+#include <string>
 #include <string_view>
 
 #define JOEHTG
@@ -124,7 +125,7 @@ extern	char	addr_form[];
 extern	char	search_pat[];
 extern	bool	hl_spat;
 extern	char    pattern[];
-extern	char    rep_buf[];
+extern	std::string	rep_buf;
 extern	int		maxx, maxy, x, y;
 extern	int		filemode, loc;
 extern	int		edits;
@@ -142,7 +143,8 @@ extern  PTR		curpos;
 extern	PTR		current;
 extern	PTR		start_addr;
 extern	PTR		end_addr;
-extern	char	*name, cmdstr[];
+extern	char	*name;
+extern	std::string	cmdstr;
 extern	off_t	filesize, memsize;
 extern	PTR		markbuf[];
 extern  PTR		last_motion;
@@ -238,7 +240,7 @@ int		cur_back();
 int		lineout();
 int		save(const char *fname, const char *start, const char *end, int flags);
 int		read_rc(const char *fn);
-int		getcmdstr(char *p, int x);
+int		getcmdstr(std::string& p, int x);
 int		enlarge(off_t add);
 int		vgetc();
 int		xpos();

@@ -32,6 +32,8 @@
 
 #include "bmore.hpp"
 
+#include <format>
+#include <string>
 #include <string_view>
 
 const char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
@@ -50,8 +52,7 @@ char	**files;		/* list of input files */
 int		numfiles;		/* number of input files */
 int		file_nr = 0;	/* number of current input file */
 
-int		arrnum = 0;
-char	numarr[64];		/* string for collecting number */
+std::string	numarr;		/* string for collecting number */
 char	addr_form[15];
 
 bool		ascii_flag = false;
@@ -291,14 +292,15 @@ main(int argc, char *argv[])
 		*/
 		prompt = 1;
 		printf("\r");
+		numarr.clear();
 		while (ch >= '0' && ch <= '9') {
-			numarr[arrnum++] = ch;
+			numarr.push_back(static_cast<char>(ch));
 			ch = vgetc();
 		}
-		numarr[arrnum] = '\0';
-		if (arrnum != 0) precount = strtol(numarr, nullptr, 10);
+		if (!numarr.empty()) precount = strtol(numarr.c_str(), nullptr, 10);
 			else precount = -1;
-		lflag = arrnum = 0;
+		lflag = 0;
+		numarr.clear();
 
 		if (ch == '.') {
 			precount = last_pre;
@@ -488,17 +490,18 @@ main(int argc, char *argv[])
 		case 'v':
 					if (!no_intty) {
 						cleartoeol();
+						std::string cmd;
 						if (ch == 'v') {
-							sprintf(string, "bvi +%lu %s", 
-								(unsigned long)(screen_home + 
+							cmd = std::format("bvi +{} {}",
+								(unsigned long)(screen_home +
 								(maxy + 1) / 2 * out_len), name);
 						} else {
 							if (precount < 1) precount = bytepos - screen_home;
-							sprintf(string, "bvi -b %lu -s %lu %s",
-								(unsigned long)screen_home, 
+							cmd = std::format("bvi -b {} -s {} {}",
+								(unsigned long)screen_home,
 								(unsigned long)precount, name);
 						}
-						doshell(string);
+						doshell(cmd.c_str());
 						to_print = maxy + 1;
 						break;
 					}

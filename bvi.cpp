@@ -38,6 +38,7 @@
 #include "set.hpp"
 
 #include <format>
+#include <string>
 
 
 
@@ -56,7 +57,7 @@ PTR		pagepos;
 PTR		spos;
 char	*name = nullptr;
 const char	*shell;
-char	cmdstr[MAXCMD+1] = "";
+std::string	cmdstr;
 FILE	*Ausgabe_Datei;
 int		edits = 0;
 int		AnzAdd, Anzahl, Anzahl3;
@@ -75,9 +76,8 @@ char	**files;		/* list of input files */
 int		numfiles;		/* number of input files */
 int		curfile;		/* number of the current file */
 
-int		arrnum = 0;
-char	numarr[MAXCMD+1];		/* string for collecting number */
-char	rep_buf[BUFFER];
+std::string	numarr;		/* string for collecting number */
+std::string	rep_buf;
 
 PTR		current;
 PTR		last_motion;
@@ -94,7 +94,7 @@ char	addr_form[15];
 const char	*nobytes = "No bytes@in the buffer";
 
 static	char	progname[8];
-static	char	line[MAXCMD+1];
+static	std::string	line;
 static	int		mark;
 static	bool		wrstat = true;
 
@@ -150,7 +150,7 @@ main(int argc, char *argv[])
 				if (argv[n + 1] == nullptr) {
 					usage();
 				} else {
-					strcpy(cmdstr, argv[++n]);
+					cmdstr = argv[++n];
 				}
 			} else if (argv[n][1] == 'f') {
 				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
@@ -192,9 +192,9 @@ main(int argc, char *argv[])
 			break;
 		case '+':			/* +cmd */
 			if (argv[n][1] == '\0') {
-				strcpy(cmdstr, "$");
+				cmdstr = "$";
 			} else {
-				strcpy(cmdstr, &argv[n][1]);
+				cmdstr = &argv[n][1];
 			}
 			n++;
 			break;
@@ -269,8 +269,8 @@ main(int argc, char *argv[])
 	}
 	if (script > -1)
 		read_rc(argv[script]);
-	if (*cmdstr != '\0')
-		docmdline(cmdstr);
+	if (!cmdstr.empty())
+		docmdline(cmdstr.c_str());
 	
 	/* main loop */
 	do {
@@ -280,14 +280,15 @@ main(int argc, char *argv[])
 		wrstat = true;
 		setcur();
 		ch = vgetc();
+		numarr.clear();
 		while (ch >= '0' && ch <= '9') {
-			if (arrnum < MAXCMD) numarr[arrnum++] = ch;
+			if (numarr.size() < MAXCMD) numarr.push_back(static_cast<char>(ch));
 			ch = vgetc();
 		}
-		numarr[arrnum] = '\0';
-		if (arrnum != 0) precount = strtoll(numarr, nullptr, 10);
+		if (!numarr.empty()) precount = strtoll(numarr.c_str(), nullptr, 10);
 			else precount = -1;
-		lflag = arrnum = 0;
+		lflag = 0;
+		numarr.clear();
 
 		switch (ch) {
 		case '^':	x = AnzAdd;
@@ -304,7 +305,7 @@ main(int argc, char *argv[])
 		case '\t':  toggle();
 					break;
 		case '~':	if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ld~", precount);
+					rep_buf = std::format("{}~", precount);
 					do_tilde((off_t)precount);
 					lflag++;
 					break;
@@ -391,8 +392,8 @@ main(int argc, char *argv[])
 					addch(ch);
 					refresh();
 					getcmdstr(cmdstr, 1);
-					if (strlen(cmdstr))
-						docmdline(cmdstr);
+					if (!cmdstr.empty())
+						docmdline(cmdstr.c_str());
 					break;
 		case BVICTRL('B'):
 		case KEY_PPAGE: 	/**** Previous Page ****/
@@ -475,13 +476,13 @@ main(int argc, char *argv[])
 					refresh();
 					getcmdstr(cmdstr, 18);
 					clearstr();
-					if (cmdstr[0] == '^') {
+					if (cmdstr.starts_with('^')) {
 						inaddr = P(P_OF);
-					} else if (cmdstr[0] == '$') {
+					} else if (cmdstr.starts_with('$')) {
 						inaddr = filesize + P(P_OF) - 1L;
 					} else {
 						off_t ltmp;
-						sscanf(cmdstr, "%llx", (long long unsigned *)&ltmp);
+						sscanf(cmdstr.c_str(), "%llx", (long long unsigned *)&ltmp);
 						inaddr = ltmp;
 					}
 					if (inaddr < P(P_OF)) break;
@@ -502,7 +503,7 @@ main(int argc, char *argv[])
 					if (getcmdstr(line, 1)) break;
 					last_motion = current;
 					hl_spat = B(P_HL);
-					searching(ch, line, current, maxpos - 1, B(P_WS));
+					searching(ch, line.c_str(), current, maxpos - 1, B(P_WS));
 					if (hl_spat) {
 						repaint();
 					}
@@ -539,19 +540,19 @@ main(int argc, char *argv[])
 					}
 					break;
 		case 'D':	if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ldD", precount);
+					rep_buf = std::format("{}D", precount);
 					trunc_cur();
 					break;
 		case 'o':	/* overwrite: this is an overwriting put */
 					if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ldo", precount);
+					rep_buf = std::format("{}o", precount);
 					do_over(current, yanked, yank_buf);
 					break;
 		case 'P':
 					if (precount < 1) precount = 1;
 					if ((undo_count = alloc_buf(yanked, &undo_buf)) == 0L)
 						break;
-					sprintf(rep_buf, "%ldP", precount);
+					rep_buf = std::format("{}P", precount);
 					if (do_append((off_t)yanked, yank_buf)) break;
 					/* we save it not for undo but for the dot command
 					memcpy(undo_buf, yank_buf, yanked);
@@ -561,7 +562,7 @@ main(int argc, char *argv[])
 		case 'r':
 		case 'R':   if (filesize == 0L) break;
 					if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ld%c", precount, ch);
+					rep_buf = std::format("{}{}", precount, static_cast<char>(ch));
 					undo_count = edit(ch);
 					lflag++;
 					break;
@@ -599,7 +600,7 @@ main(int argc, char *argv[])
 						else beep();
 					break;
 		case '.':
-					if (!strlen(rep_buf)) {
+					if (rep_buf.empty()) {
 						beep();
 					} else {
 						stuffin(rep_buf);
@@ -619,7 +620,7 @@ main(int argc, char *argv[])
 				if (precount < 1) precount = 1;
 				switch (ch) {
 				case 'I':
-					sprintf(rep_buf, "%ldI", precount);
+					rep_buf = std::format("{}I", precount);
 					current = mem;
 					setpage(mem);
 					repaint();
@@ -628,7 +629,7 @@ main(int argc, char *argv[])
 					break;
 /* undo does not work correctly !!! */
 				case 's':
-					sprintf(rep_buf, "%lds", precount);
+					rep_buf = std::format("{}s", precount);
 					if (do_delete((off_t)precount, current)) break;
 					precount = 1;
 					undo_count = edit('i');
@@ -638,12 +639,12 @@ main(int argc, char *argv[])
 					if (cur_forw(true)) break;
 					current++;
 				case 'i':
-					sprintf(rep_buf, "%ld%c", precount, ch);
+					rep_buf = std::format("{}{}", precount, static_cast<char>(ch));
 					undo_count = edit(ch);
 					lflag++;
 					break;
 				case 'p':
-					sprintf(rep_buf, "%ldp", precount);
+					rep_buf = std::format("{}p", precount);
 					do_put(current, yanked, yank_buf);
 					break;
 				case 'c':
@@ -660,11 +661,11 @@ main(int argc, char *argv[])
 					}
 					break;
 				case 'x':
-					sprintf(rep_buf, "%ldx", precount);
+					rep_buf = std::format("{}x", precount);
 					do_delete((off_t)precount, current);
 					break;
 				case 'X':
-					sprintf(rep_buf, "%ldX", precount);
+					rep_buf = std::format("{}X", precount);
 					do_back((off_t)precount, current);
 					break;
 				default:
@@ -676,7 +677,7 @@ main(int argc, char *argv[])
 				case 'x':
 					if (precount < 1) precount = 1;
 					if ((off_t)precount + current == maxpos) {
-						sprintf(rep_buf, "%ldx", precount);
+						rep_buf = std::format("{}x", precount);
 						do_delete((off_t)precount, current);
 					} else {
 						movebyte();
@@ -923,24 +924,23 @@ range(int ch)
 	long	count;
 
 	ch1 = vgetc();
+	numarr.clear();
 	while (ch1 >= '0' && ch1 <= '9') {
-		numarr[arrnum++] = ch1;
+		numarr.push_back(static_cast<char>(ch1));
 		ch1 = vgetc();
 	}
-	numarr[arrnum] = '\0';
-	if (arrnum != 0) count = strtol(numarr, nullptr, 10);
+	if (!numarr.empty()) count = strtol(numarr.c_str(), nullptr, 10);
 		else count = 1;
-	arrnum = 0;
-	sprintf(rep_buf, "%ld%c%s%c", precount, ch, numarr, ch1);
+	rep_buf = std::format("{}{}{}{}", precount, static_cast<char>(ch), numarr, static_cast<char>(ch1));
 	switch (ch1) {
 	case '/':	/**** Search String ****/
 	case '\\':
-		strcat(rep_buf, "\n");
+		rep_buf += '\n';
 		clearstr();
 		addch(ch1);
 		refresh();
 		if (getcmdstr(line, 1)) break;
-		end_addr = searching(ch1, line, current, maxpos - 1, false);
+		end_addr = searching(ch1, line.c_str(), current, maxpos - 1, false);
 		if (!end_addr) {
 			beep();
 			return 0;
@@ -948,12 +948,12 @@ range(int ch)
 		return(end_addr - current);
 	case '?':
 	case '#':
-		strcat(rep_buf, "\n");
+		rep_buf += '\n';
 		clearstr();
 		addch(ch1);
 		refresh();
 		if (getcmdstr(line, 1)) break;
-		start_addr = searching(ch1, line, current, maxpos - 1, false);
+		start_addr = searching(ch1, line.c_str(), current, maxpos - 1, false);
 		if (!start_addr) {
 			beep();
 			return 0;
