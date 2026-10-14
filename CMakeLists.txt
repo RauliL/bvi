@@ -85,13 +85,12 @@ install(
   RUNTIME DESTINATION
     bin
 )
+
 install(
   FILES
-    bvi.1
+    bvi.desktop
   DESTINATION
-    ${CMAKE_INSTALL_MANDIR}/man1
-  COMPONENT
-    doc
+    share/applications
 )
 
 if(COMPILE_BMORE)
@@ -133,12 +132,7 @@ if(COMPILE_BMORE)
     RUNTIME DESTINATION
       bin
   )
-  install(
-    FILES
-      bmore.1
-    DESTINATION
-      ${CMAKE_INSTALL_MANDIR}/man1
-    COMPONENT
-      doc
-  )
 endif()
+
+add_subdirectory(icons)
+add_subdirectory(man)

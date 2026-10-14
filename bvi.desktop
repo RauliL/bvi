@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=BVI
+GenericName=BVI
+Comment=Vi like hex editor
+Exec=bvi
+Icon=bvi
+Terminal=true
+Type=Application
+Categories=System;Utility

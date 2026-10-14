@@ -1,0 +1,19 @@
+install(
+  FILES
+    bvi.1
+  DESTINATION
+    ${CMAKE_INSTALL_MANDIR}/man1
+  COMPONENT
+    doc
+)
+
+if(COMPILE_BMORE)
+  install(
+    FILES
+      bmore.1
+    DESTINATION
+      ${CMAKE_INSTALL_MANDIR}/man1
+    COMPONENT
+      doc
+  )
+endif()
