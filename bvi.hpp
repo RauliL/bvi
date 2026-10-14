@@ -95,9 +95,6 @@
 #define BVICTRL(n)	(n&0x1f)
 #define	ASCII_DEL	0x7f
 
-#define CMDLNG(a,b)     (len <= a && len >= b)
-
-
 using PTR = char *;
 #define DELIM	'/'
 

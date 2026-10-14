@@ -121,7 +121,7 @@ edit(int mode)
 			setcur();
 			continue;
 		}
-		if (ch == KEY_BACKSPACE 
+		if (ch == KEY_BACKSPACE
 				|| ch == ASCII_DEL
 				|| ch == BVICTRL('H')) {
 			if (count > 0) {
@@ -847,6 +847,11 @@ do_delete(off_t n, PTR start)
 	return 0;
 }
 
+static inline bool
+CMDLNG(const std::size_t len, const std::size_t a, const std::size_t b)
+{
+	return len <= a && len >= b;
+}
 
 /*
  * The :insert, :append and :change command
@@ -857,7 +862,7 @@ do_ins_chg(PTR start, const char *arg, int mode)
 	int		base;
 	off_t	buffer = BUFFER;
 	off_t	count = 0L;
-	size_t	len;
+	std::size_t len;
 	long	val;
 	char	*tempbuf = nullptr;
 	char	*poi, *epoi;
@@ -867,15 +872,15 @@ do_ins_chg(PTR start, const char *arg, int mode)
 		return;
 	}
 	len = std::strlen(arg);
-	if (!std::strncmp("ascii", arg, len) && CMDLNG(5, 1)) {
+	if (!std::strncmp("ascii", arg, len) && CMDLNG(len, 5, 1)) {
 		base = 1;
-	} else if (!std::strncmp("binary", arg, len) && CMDLNG(6, 1)) {
+	} else if (!std::strncmp("binary", arg, len) && CMDLNG(len, 6, 1)) {
 		base = 2;
-	} else if (!std::strncmp("octal", arg, len) && CMDLNG(5, 1)) {
+	} else if (!std::strncmp("octal", arg, len) && CMDLNG(len, 5, 1)) {
 		base = 8;
-	} else if (!std::strncmp("decimal", arg, len) && CMDLNG(7, 1)) {
+	} else if (!std::strncmp("decimal", arg, len) && CMDLNG(len, 7, 1)) {
 		base = 10;
-	} else if (!std::strncmp("hexadecimal", arg, len) && CMDLNG(11, 1)) {
+	} else if (!std::strncmp("hexadecimal", arg, len) && CMDLNG(len, 11, 1)) {
 		base = 16;
 	} else {
 		emsg("No such option");
@@ -967,7 +972,7 @@ clear_marks()
 void
 do_mark(int mark, PTR addr)
 {
-	if (mark < 'a' || mark > 'z' || current >= maxpos) 
+	if (mark < 'a' || mark > 'z' || current >= maxpos)
 		return;
 	markbuf[mark - 'a'] = addr;
 }
