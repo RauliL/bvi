@@ -30,17 +30,17 @@
 #include <sys/types.h>
 #include <locale.h>
 
-#include "bmore.h"
+#include "bmore.hpp"
 
-char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
+const char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
 
 int		maxx, maxy;
 int		mymaxx = 0, mymaxy = 0;
-char	*name = NULL;
+char	*name = nullptr;
 char	sstring[MAXCMD] = "";	/* string for search */
 char	estring[MAXCMD] = "";	/* string for shell escape */
 char	string[MAXCMD];
-FILE	*curr_file = NULL, *help_file;
+FILE	*curr_file = nullptr, *help_file;
 int		AnzAdd;
 long	precount = -1;	/* number preceding command */
 
@@ -74,7 +74,7 @@ static	int		smode;
 
 /* char	search_pat[BUFFER];	*/  /* / or ? command */
 char	bmore_search_pat[BUFFER];   /* / or ? command */
-char	*emptyclass = "Empty byte class '[]' or '[^]'";
+const char	*emptyclass = "Empty byte class '[]' or '[^]'";
 
 static const char* help =
 "Most commands optionally preceded by integer argument k.  Defaults in brackets.\n"
@@ -122,9 +122,7 @@ usage()
 
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int		ch, ch1;
 	int		colon = 0, last_ch = 0;
@@ -150,13 +148,13 @@ main(argc, argv)
 			if (argv[n][1] >= '0' && argv[n][1] <= '9') {
 				sscanf(&argv[n][1], "%dx%d", &mymaxy, &mymaxx);
 			} else if (argv[n][1] == 'n') {
-				if (argv[n+1] == NULL || argv[n+1][0] == '-') {
+				if (argv[n+1] == nullptr || argv[n+1][0] == '-') {
 					usage();
 				} else {
 					sscanf(&argv[++n][0], "%d", &mymaxy);
 				}
 			} else if (argv[n][1] == 'w') {
-				if (argv[n+1] == NULL || argv[n+1][0] == '-') {
+				if (argv[n+1] == nullptr || argv[n+1][0] == '-') {
 					usage();
 				} else {
 					sscanf(&argv[++n][0], "%d", &mymaxx);
@@ -186,7 +184,7 @@ main(argc, argv)
 				init_search = argv[n][1];
 				strcpy(sstring, &argv[n][2]);
 			} else {
-				init_byte = strtoll(argv[n] + 1, NULL, 0);
+				init_byte = strtoll(argv[n] + 1, nullptr, 0);
 			}
 			n++;
 			break;
@@ -295,7 +293,7 @@ main(argc, argv)
 			ch = vgetc();
 		}
 		numarr[arrnum] = '\0';
-		if (arrnum != 0) precount = strtol(numarr, (char **)NULL, 10);
+		if (arrnum != 0) precount = strtol(numarr, nullptr, 10);
 			else precount = -1;
 		lflag = arrnum = 0;
 
@@ -519,9 +517,7 @@ main(argc, argv)
 
 
 int
-rdline(ch, sstring)
-	int		ch;
-	char	*sstring;
+rdline(int ch, char *sstring)
 {
 	int		i = 0;
 	int		ch1 = 0;
@@ -573,8 +569,7 @@ rdline(ch, sstring)
 
 
 void
-do_next(n)
-	int	n;
+do_next(int n)
 {
 	if (numfiles) {
 		if (n == 1 && file_nr == numfiles) {
@@ -600,8 +595,7 @@ do_next(n)
 
 
 int
-open_file(name)
-	char *name;
+open_file(char *name)
 {
 	struct	stat	buf;
 
@@ -610,7 +604,7 @@ open_file(name)
 	}
 	if (curr_file) fclose(curr_file);
 	if (numfiles > 1) do_header = 1;
-	if ((curr_file = fopen(name, "rb")) == NULL) {
+	if ((curr_file = fopen(name, "rb")) == nullptr) {
 		perror(name);
 		exval = 1;
 		return 1;
@@ -621,9 +615,7 @@ open_file(name)
 
 
 void
-putline(buf, num)
-	char	*buf;
-	int		num;
+putline(char *buf, int num)
 {
 	int			print_pos;
 	unsigned	char	ch;
@@ -654,8 +646,7 @@ putline(buf, num)
 
 
 int
-printout(lns)
-	int lns;
+printout(int lns)
 {
 	int			c, num;
 	int			doub = 0;
@@ -720,9 +711,7 @@ nextchar()
 
 
 void
-pushback(n, where)
-	int	n;
-	char	*where;
+pushback(int n, char *where)
 {
 	if (cnt) memmove(cmdbuf + n, cmdbuf, n);
 	memcpy(cmdbuf, where, n);
@@ -739,8 +728,7 @@ pushback(n, where)
  *  1   found
  */
 int
-bmregexec(scan)
-	char	*scan;
+bmregexec(char *scan)
 {
 	char	*act;
 	int		count, test;
@@ -858,10 +846,7 @@ bmregexec(scan)
 
 
 int
-sbracket(start, scan, count)
-	int		start;
-	char	*scan;
-	int		count;
+sbracket(int start, char *scan, int count)
 {
 	if (*scan++ == '^') {
 		if (!memchr(scan, start, --count)) return 0;
@@ -873,8 +858,7 @@ sbracket(start, scan, count)
 
 
 void
-bmsearch(ch)
-	int	ch;
+bmsearch(int ch)
 {
 	int	i;
 
@@ -926,8 +910,7 @@ emsg(string);
 
 
 void
-emsg(s)
-	char	*s;
+emsg(const char *s)
 {
 	putchar('\r');
 	cleartoeol();

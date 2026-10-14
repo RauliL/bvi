@@ -30,8 +30,8 @@
  * See file COPYING for information on distribution conditions.
  */
 
-#include "bvi.h"
-#include "set.h"
+#include "bvi.hpp"
+#include "set.hpp"
 
 static	int		from_file = 0;
 static	FILE	*ffp;
@@ -61,16 +61,15 @@ struct	param	params[] = {
 };
 
 int
-doset(arg)
-	char	*arg;		/* parameter string */
+doset(char *arg)		/* parameter string */
 {
 	int		i;
-	char	*s;
+	const char	*s;
 	int		did_window = FALSE;
 	int		state = TRUE;		/* new state of boolean parms. */
 	char	string[80];
 
-	if (arg == NULL) {
+	if (arg == nullptr) {
 		showparms(FALSE);
 		return 0;
 	}
@@ -117,8 +116,10 @@ doset(arg)
 				emsg(string);
 				return 1;
 			} else {
+				char *end = nullptr;
 				s = arg + strlen(s) + 1;
-				params[i].nvalue = strtoll(s, &s, 0);
+				params[i].nvalue = strtoll(s, &end, 0);
+				s = end;
 				params[i].flags |= P_CHANGED;
 				if (i == P_CM) {
 					if (((COLS - AnzAdd - 1) / 4) >= P(P_CM)) {
@@ -163,8 +164,7 @@ doset(arg)
 
 /* show ALL parameters */
 void
-showparms(all)
-	int	all;
+showparms(int all)
 {
 	struct	param	*p;
 	int		n;
@@ -195,14 +195,13 @@ showparms(all)
 
 /* reads the init file (.bvirc) */
 int
-read_rc(fn)
-	char *fn;
+read_rc(char *fn)
 {
 	int i;
 
-	if ((ffp = fopen(fn, "r")) == NULL) return -1;
+	if ((ffp = fopen(fn, "r")) == nullptr) return -1;
 	from_file = 1;
-	while (fgets(fbuf, MAXCMD, ffp) != NULL) {
+	while (fgets(fbuf, MAXCMD, ffp) != nullptr) {
 		i = strlen(fbuf) - 1;
 		while ((i >= 0) && (fbuf[i] == NL || fbuf[i] == CR)) fbuf[i--] = '\0';
 		docmdline(fbuf);
@@ -214,14 +213,12 @@ read_rc(fn)
 
 
 int
-do_logic(mode, str)
-	int		mode;
-	char	*str;
+do_logic(int mode, const char *str)
 {
 	int		a, b;
 	int		value;
 	size_t	n;
-	char	*err_str ="Invalid value@for bit manipulation";
+	const char	*err_str ="Invalid value@for bit manipulation";
 
 	if (mode==LSHIFT || mode==RSHIFT || mode==LROTATE || mode==RROTATE) {
 		value = atoi(str);
@@ -231,7 +228,7 @@ do_logic(mode, str)
 		}
 	} else {
 		if (strlen(str) == 8) {
-			value = strtol(str, NULL, 2);
+			value = strtol(str, nullptr, 2);
 			for (n = 0; n < 8; n++) {
 				if (str[n] != '0' && str[n] != '1') {
 					value = -1;
@@ -239,9 +236,9 @@ do_logic(mode, str)
 				}
 			}
 		} else if (str[0] == 'b' || str[0] == 'B') {
-			value = strtol(str + 1, NULL, 2);
+			value = strtol(str + 1, nullptr, 2);
 		} else if (str[0] == '0') {
-			value = strtol(str, NULL, 0);
+			value = strtol(str, nullptr, 0);
 			for (n = 0; n < strlen(str); n++) {
 				if (!isxdigit(str[n])) {
 					value = -1;
@@ -302,16 +299,14 @@ do_logic(mode, str)
 
 
 int
-getcmdstr(p, x)
-	char    *p;
-	int		x;
+getcmdstr(char *p, int x)
 {
 	int		c;
 	int		i, n;
 	char	*buff, *q;
 
 	if (from_file) {
-		if (fgets(p, 255, ffp) != NULL) {
+		if (fgets(p, 255, ffp) != nullptr) {
 			// strtok(p, "\n\r");
 			i = strlen(p) - 1;
 			while ((i >= 0) && (p[i] == NL || p[i] == CR)) p[i--] = '\0';

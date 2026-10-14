@@ -32,8 +32,8 @@
  * See file COPYING for information on distribution conditions.
  */
 
-#include "bvi.h"
-#include "set.h"
+#include "bvi.hpp"
+#include "set.hpp"
 
 #ifdef HAVE_UNISTD_H
 #	include <unistd.h>
@@ -56,18 +56,18 @@
 #define ONE_FILE		64
 #define	MAX_ONE_FILE	128
 
-static	char	*altfile = NULL;	/* alternate file */
+static	char	*altfile = nullptr;	/* alternate file */
 static	struct	stat buf;
 static	int		c_argc = 0;
 static	char	*c_argv[9];
 
-char	*nowrtmsg  = "No write@since last change (:%s! overrides)";
-char	*morefiles = "more files@to edit";
-char	*ambigous  = "Ambigous|Too many file names";
-char	*ambvalue  = "Ambigous|Too many values";
-char	*extra     = "Extra chars|Extra characters at end of command";
-char	*noaddr    = "No address allowed@on this command";
-char	*noval     = "No value@for binary operation";
+const char	*nowrtmsg  = "No write@since last change (:%s! overrides)";
+const char	*morefiles = "more files@to edit";
+const char	*ambigous  = "Ambigous|Too many file names";
+const char	*ambvalue  = "Ambigous|Too many values";
+const char	*extra     = "Extra chars|Extra characters at end of command";
+const char	*noaddr    = "No address allowed@on this command";
+const char	*noval     = "No value@for binary operation";
 int		repl_count = -1;
 int		addr_flag;
 
@@ -91,8 +91,7 @@ static int save_chk(char*, char*, char*, int);
  * the environment variable "BVIINIT" (or eventually .bvirc).
  */
 void
-docmdline(cmdline)
-	char	*cmdline;
+docmdline(char *cmdline)
 {
 	char	buff[CMDSZ];
 	char	cmdbuf[CMDSZ];
@@ -124,14 +123,14 @@ docmdline(cmdline)
 		cmd++;
 		addr_flag = 2;
 	} else {
-		if ((start_addr = calc_addr(&cmd, mem)) == NULL) {
+		if ((start_addr = calc_addr(&cmd, mem)) == nullptr) {
 			return;
 		}
 		if (*cmd == ',') {
 			cmd++;
 			addr_flag = 1;
 			SKIP_WHITE
-			if ((end_addr = calc_addr(&cmd, maxpos - 1)) == NULL) {
+			if ((end_addr = calc_addr(&cmd, maxpos - 1)) == nullptr) {
 				return;
 			}
 		} else {
@@ -276,16 +275,16 @@ docmdline(cmdline)
 		SKIP_WHITE
 
 		c_argc = 0;
-		if ((c_argv[c_argc] = strtok(cmd, " \t")) != NULL) c_argc++;
-		while ((c_argv[c_argc] = strtok(NULL, " \t")) != NULL) c_argc++;
+		if ((c_argv[c_argc] = strtok(cmd, " \t")) != nullptr) c_argc++;
+		while ((c_argv[c_argc] = strtok(nullptr, " \t")) != nullptr) c_argc++;
 
 		if (c_argc > 1) { 
 			emsg(ambigous);
 			return; }
 		if (c_argc == 1) {
 		    /* change '%' to Filename */
-		    while ((p = strchr(c_argv[0], '%')) != NULL && *(p-1) != '\\') {
-		        if (name == NULL) {
+		    while ((p = strchr(c_argv[0], '%')) != nullptr && *(p-1) != '\\') {
+		        if (name == nullptr) {
 		            emsg("No filename@to substitute for %");
 		            return;
 		        }
@@ -296,7 +295,7 @@ docmdline(cmdline)
 				c_argv[0] = oldbuf;
 		    }
 		}
-		if (name == NULL && c_argc != 0) name = strdup(c_argv[0]);
+		if (name == nullptr && c_argc != 0) name = strdup(c_argv[0]);
 		if (force) {
 			if (c_argc == 0) ok = save(name, start_addr, end_addr, saveflag);
 				else	ok = save(c_argv[0], start_addr, end_addr, saveflag);
@@ -341,12 +340,12 @@ docmdline(cmdline)
 
 	c_argc = 0;
 	cmd = strtok(cmdbuf, " \t");
-	while ((c_argv[c_argc] = strtok(NULL, " \t")) != NULL) c_argc++;
+	while ((c_argv[c_argc] = strtok(nullptr, " \t")) != nullptr) c_argc++;
 
 	if (!strncmp("set", cmdname, len) && CMDLNG(3, 2)) {
 		if (chk_comm(NO_ADDR)) return;
 		if (c_argc == 0) {
-			doset(NULL);
+			doset(nullptr);
 		} else {
 			for (n = 0; n < c_argc; n++) {
 				if (doset(c_argv[n])) return;
@@ -622,11 +621,7 @@ yd_addr()
 
 /*********** Save file if not read only ********************/
 static int
-save_chk(fname, start, end, flags)
-   char    *fname;
-   char    *start;
-   char    *end;
-   int     flags;
+save_chk(char *fname, char *start, char *end, int flags)
 {
    if (P(P_RO)) {
        sprintf(string, "\"%s\" File is read only", name);
@@ -650,13 +645,11 @@ do_exit()
 
 
 int
-doecmd(arg, force)
-	char	*arg;
-	int		force;
+doecmd(char *arg, int force)
 {
 	char *tmp;
 
-	if (*arg == '\0') arg = NULL;
+	if (*arg == '\0') arg = nullptr;
 	if (!force && edits) {
 		sprintf(string, nowrtmsg, "edit");
 		emsg(string);
@@ -667,13 +660,13 @@ doecmd(arg, force)
 		*/
 		return FALSE;
 	}
-	if (arg != NULL) {
-		if (name != NULL && !strcmp(arg, name)) {
+	if (arg != nullptr) {
+		if (name != nullptr && !strcmp(arg, name)) {
 			if (!edits || (edits && !force))
 				return TRUE;
 		}
-		if (name != NULL && !strcmp(arg, "#")) {
-			if (altfile == NULL) {
+		if (name != nullptr && !strcmp(arg, "#")) {
+			if (altfile == nullptr) {
 				emsg("No alternate filename@to substitute for #");
 				return FALSE;
 			}
@@ -688,14 +681,14 @@ doecmd(arg, force)
 			name = strdup(arg);
 		}
 	}
-	if (name == NULL) {
+	if (name == nullptr) {
 		emsg("No file|No current filename");
 		return FALSE;
 	}
 
 	edits = 0;
 	filesize = load(name);
-	if (arg == NULL) {
+	if (arg == nullptr) {
         setpage(current < maxpos ? current : maxpos - 1L);
     }
 	return TRUE;
@@ -715,8 +708,7 @@ clearstr()
 
 /**** displays an error message *****/
 void
-emsg(s)
-	char	*s;
+emsg(const char *s)
 {
 	int	cnt;
 	int stchar;
@@ -740,8 +732,7 @@ emsg(s)
 
 /*** System error message *****/
 void
-sysemsg(s)
-	char	*s;
+sysemsg(const char *s)
 {
 	char	string[256];
 
@@ -753,8 +744,7 @@ sysemsg(s)
 
 /*** displays mode if showmode set *****/
 void
-smsg(s)
-	char	*s;
+smsg(const char *s)
 {
 	if (P(P_MO)) {
 		msg(s);
@@ -765,8 +755,7 @@ smsg(s)
 
 /************* displays s on status line *****************/
 void
-msg(s)
-	char	*s;
+msg(const char *s)
 {
 	int stchar;
 
@@ -784,10 +773,9 @@ msg(s)
 
 
 int
-outmsg(s)
-	char	*s;
+outmsg(const char *s)
 {
-	char	*poi;
+	const char	*poi;
 	int		cnt = 0;
 
 	move(maxy, 0);
@@ -815,8 +803,7 @@ outmsg(s)
  *
  */
 int
-wait_return(flag)
-	int	flag;
+wait_return(int flag)
 {
 	int	c;
 
@@ -839,8 +826,7 @@ wait_return(flag)
 
 
 int
-chk_comm(flag)
-	int flag;
+chk_comm(int flag)
 {
 	if ((flag & NO_ADDR) && (addr_flag > 0)) {
 		emsg(noaddr); return 1; }

@@ -34,12 +34,12 @@
 #include <sys/types.h>
 #include <locale.h>
 
-#include "bvi.h"
-#include "set.h"
+#include "bvi.hpp"
+#include "set.hpp"
 
 
 
-char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
+const char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
 
 jmp_buf	env;        /* context for `longjmp' function   */
 
@@ -47,12 +47,12 @@ int		loc;
 int		maxx, maxy, x, xx, y;
 int		screen, status, statsize;
 off_t	size;
-PTR		mem = NULL;
+PTR		mem = nullptr;
 PTR		curpos;
 PTR		maxpos;
 PTR		pagepos;
 PTR		spos;
-char	*name = NULL;
+char	*name = nullptr;
 char	*shell;
 char	string[MAXCMD+1];
 char	cmdstr[MAXCMD+1] = "";
@@ -84,13 +84,13 @@ PTR		current_start;
 PTR		undo_start;
 off_t	undo_count;
 off_t	yanked = 0L;
-char	*yank_buf = NULL;
-char	*undo_buf = NULL;
+char	*yank_buf = nullptr;
+char	*undo_buf = nullptr;
 PTR		markbuf[26];
 
 char	addr_form[15];
 
-char	*nobytes = "No bytes@in the buffer";
+const char	*nobytes = "No bytes@in the buffer";
 
 static	char	progname[8];
 static	char	line[MAXCMD+1];
@@ -113,9 +113,7 @@ usage()
 
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int		ch;
 	int		lflag;
@@ -148,34 +146,34 @@ main(argc, argv)
 				params[P_RO].flags |= P_CHANGED;
 				P(P_RO) = TRUE;
 			} else if (argv[n][1] == 'c') {
-				if (argv[n + 1] == NULL) {
+				if (argv[n + 1] == nullptr) {
 					usage();
 				} else {
 					strcpy(cmdstr, argv[++n]);
 				}
 			} else if (argv[n][1] == 'f') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					script = ++n;
 				}
 
 			} else if (argv[n][1] == 's') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					block_begin = calc_size(argv[++n]);
 					block_flag |= BLOCK_BEGIN;
 				}
 			} else if (argv[n][1] == 'e') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					block_end = calc_size(argv[++n]);
 					block_flag |= BLOCK_END;
 				}
 			} else if (argv[n][1] == 'n') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					block_size = calc_size(argv[++n]);
@@ -286,7 +284,7 @@ main(argc, argv)
 			ch = vgetc();
 		}
 		numarr[arrnum] = '\0';
-		if (arrnum != 0) precount = strtoll(numarr, (char **)NULL, 10);
+		if (arrnum != 0) precount = strtoll(numarr, nullptr, 10);
 			else precount = -1;
 		lflag = arrnum = 0;
 
@@ -534,7 +532,7 @@ main(argc, argv)
 					} else {
 						if (mark < 'a' || mark > 'z') {
 							beep(); break;
-						} else if (markbuf[mark - 'a'] == NULL) {
+						} else if (markbuf[mark - 'a'] == nullptr) {
 								beep(); break;
 						}
 						setpage(markbuf[mark - 'a']);
@@ -706,8 +704,7 @@ main(argc, argv)
 
 
 off_t
-calc_size(arg)
-	char	*arg;
+calc_size(char *arg)
 {
 	off_t	val;
 	extern int errno;
@@ -758,9 +755,7 @@ trunc_cur()
 
 
 int
-do_append(count, buf)
-	off_t	count;
-	char	*buf;
+do_append(off_t count, char *buf)
 {
 	if (filesize + count > memsize) {
 		if (enlarge(count + 100L)) return 1;
@@ -777,8 +772,7 @@ do_append(count, buf)
 
 
 void
-do_tilde(count)
-	off_t	count;
+do_tilde(off_t count)
 {
 	if (filesize == 0L) return;
 	undo_start = current;
@@ -864,10 +858,7 @@ do_undo()
 
 
 void
-do_over(loc, n, buf)
-	PTR		loc;
-	off_t	n;
-	PTR		buf;
+do_over(PTR loc, off_t n, PTR buf)
 {
 	if (n < 1L) {
 		emsg(nobytes);
@@ -889,10 +880,7 @@ do_over(loc, n, buf)
 
 
 void
-do_put(loc, n, buf)
-	PTR		loc;
-	off_t	n;
-	PTR		buf;
+do_put(PTR loc, off_t n, PTR buf)
 {
 	if (n < 1L) {
 		emsg(nobytes);
@@ -920,8 +908,7 @@ do_put(loc, n, buf)
 
 /* argument sig not used, because only SIGINT will be catched */
 void
-jmpproc(sig)
-	int	sig;
+jmpproc(int sig)
 {
 	if (P(P_EB)) beep();
 	repaint();
@@ -932,8 +919,7 @@ jmpproc(sig)
 
 
 off_t
-range(ch)
-	int		ch;
+range(int ch)
 {
 	int		ch1;
 	long	count;
@@ -944,7 +930,7 @@ range(ch)
 		ch1 = vgetc();
 	}
 	numarr[arrnum] = '\0';
-	if (arrnum != 0) count = strtol(numarr, (char **)NULL, 10);
+	if (arrnum != 0) count = strtol(numarr, nullptr, 10);
 		else count = 1;
 	arrnum = 0;
 	sprintf(rep_buf, "%ld%c%s%c", precount, ch, numarr, ch1);
@@ -1021,7 +1007,7 @@ range(ch)
 			return 0;
 		}
 		end_addr = markbuf[mark - 'a'];
-		if (end_addr == NULL) {
+		if (end_addr == nullptr) {
 	        beep();
 			return 0;
 	    }

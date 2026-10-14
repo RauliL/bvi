@@ -29,8 +29,8 @@
  * See file COPYING for information on distribution conditions.
  */
 
-#include "bvi.h"
-#include "set.h"
+#include "bvi.hpp"
+#include "set.hpp"
 
 #if 0
 /* nowadays (2009) we should make sure that bvi is compiled with LFS support: */
@@ -62,11 +62,7 @@ char	*terminal;
 
 /*********** Save the patched file ********************/
 int
-save(fname, start, end, flags)
-	char	*fname;
-	char	*start;
-	char	*end;
-	int		flags;
+save(char *fname, char *start, char *end, int flags)
 {
 	int		fd;
 	char	*string;
@@ -77,8 +73,8 @@ save(fname, start, end, flags)
 		emsg("No file|No current filename");
 		return 0;
 	}
-	string = malloc((size_t)strlen(fname) + MAXCMD);
-	if (string == NULL) {
+	string = static_cast<char*>(malloc((size_t)strlen(fname) + MAXCMD));
+	if (string == nullptr) {
 		emsg("Out of memory");
 		return 0;
 	}
@@ -150,14 +146,13 @@ save(fname, start, end, flags)
 
 /* loads a file, returns the filesize */
 off_t
-load(fname)
-	char	*fname;
+load(char *fname)
 {
 	int		fd = -1;
 	char	*string;
 
 	buf.st_size = 0L;
-	if (fname != NULL) {
+	if (fname != nullptr) {
 		/*
 		sprintf(string, "\"%s\"", fname);
 		msg(string);
@@ -225,7 +220,7 @@ load(fname)
 	} else {
 		filemode = NEW;
 	}
-	if (mem != NULL) free(mem);
+	if (mem != nullptr) free(mem);
 	memsize = 1024;
 	if (block_flag) {
 		if (block_flag == BLOCK_BEGIN) {
@@ -235,7 +230,7 @@ load(fname)
 	} else if (filemode == REGULAR) {
 		memsize += buf.st_size;
 	}
-	if ((mem = (char *)malloc(memsize)) == NULL) {
+	if ((mem = static_cast<char*>(malloc(memsize))) == nullptr) {
 		move(maxy, 0);
 		endwin();
 		printf("Out of memory\n");
@@ -243,12 +238,12 @@ load(fname)
 	}
 	clear_marks();
 
-	if (fname != NULL) {
-		string = malloc((size_t)strlen(fname) + MAXCMD);
+	if (fname != nullptr) {
+		string = static_cast<char*>(malloc((size_t)strlen(fname) + MAXCMD));
 	} else {
-		string = malloc(MAXCMD);
+		string = static_cast<char*>(malloc(MAXCMD));
 	}
-	if (string == NULL) {
+	if (string == nullptr) {
 		emsg("Out of memory");
 		return 0;
 	}
@@ -283,7 +278,7 @@ load(fname)
 		filesize = 0L;
 	}
 	if (fd > 0) close(fd);
-	if (fname != NULL) {
+	if (fname != nullptr) {
 		switch (filemode) {
 		case NEW:
 			sprintf(string, "\"%s\" [New File]", fname);
@@ -319,18 +314,17 @@ load(fname)
  * Needed for DOS version only
  */
 void
-bvi_init(dir)
-	char *dir;
+bvi_init(char *dir)
 {
 	char    *initstr;
 	char    rcpath[MAXCMD];
 
 	terminal = getenv("TERM");
 	shell = getenv("SHELL");
-	if (shell == NULL || *shell == '\0')
+	if (shell == nullptr || *shell == '\0')
 		shell = "/bin/sh";
 
-	if ((initstr = getenv("BVIINIT")) != NULL) {
+	if ((initstr = getenv("BVIINIT")) != nullptr) {
 		docmdline(initstr);
 		return;
 	}
@@ -350,8 +344,7 @@ bvi_init(dir)
 
 
 int
-enlarge(add)
-	off_t	add;
+enlarge(off_t add)
 {
 	char	*newmem;
 	off_t	savecur, savepag, savemax, saveundo;
@@ -361,12 +354,12 @@ enlarge(add)
 	savemax = maxpos - mem;
 	saveundo = undo_start - mem;
 
-	if (mem == NULL) {
-		newmem = malloc(memsize + add);
+	if (mem == nullptr) {
+		newmem = static_cast<char*>(malloc(memsize + add));
 	} else {
-		newmem = realloc(mem, memsize + add);
+		newmem = static_cast<char*>(realloc(mem, memsize + add));
 	}
-	if (newmem == NULL) {
+	if (newmem == nullptr) {
 		emsg("Out of memory");
 		return 1;
 	}
@@ -395,16 +388,14 @@ do_shell()
 
 
 off_t
-alloc_buf(n, buffer)
-	off_t	n;
-	char	**buffer;
+alloc_buf(off_t n, char **buffer)
 {
-	if (*buffer == NULL) {
-		*buffer = (char *)malloc(n);
+	if (*buffer == nullptr) {
+		*buffer = static_cast<char*>(malloc(n));
 	} else {
-		*buffer = (char *)realloc(*buffer, n);
+		*buffer = static_cast<char*>(realloc(*buffer, n));
 	}
-	if (*buffer == NULL) {
+	if (*buffer == nullptr) {
 		emsg("No buffer space available");
 		return 0L;
 	}
@@ -413,8 +404,7 @@ alloc_buf(n, buffer)
 
 
 int
-addfile(fname)
-	char	*fname;
+addfile(char *fname)
 {
 	int		fd;
 	off_t	oldsize;

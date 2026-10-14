@@ -26,7 +26,7 @@
  */
 
 
-#include "bmore.h"
+#include "bmore.hpp"
 #include <termios.h>
 
 #define TBUFSIZ 1024
@@ -49,8 +49,7 @@ int     fnum, no_intty, no_tty, slow_tty;
 int     dum_opt, dlines;
 
 int
-putchr(ch)
-	int ch;
+putchr(int ch)
 {return putchar(ch);}
 
 
@@ -121,8 +120,7 @@ reset_tty()
 
 
 void
-sig(sig)
-	int sig;
+sig(int sig)
 {
 	reset_tty();
 	printf("\r\n");
@@ -134,18 +132,16 @@ sig(sig)
  * doshell() - run a command or an interactive shell
  */
 void
-doshell(cmd)
-	char	*cmd;
+doshell(char *cmd)
 {
 	int	ret;
-	char	*getenv();
-	char	*shell;
+	const char	*shell;
 	char	cline[128];
 
 	printf("\n");
 
-	if ((shell = getenv("SHELL")) == NULL) shell = "sh";
-	else if(strrchr(shell,'/')) shell=(char *)(strrchr(shell,'/')+1);
+	if ((shell = getenv("SHELL")) == nullptr) shell = "sh";
+	else if(strrchr(shell,'/')) shell = strrchr(shell,'/')+1;
 
 	if (cmd[0] == '\0') {
 		sprintf(cline, "%s -i", shell);

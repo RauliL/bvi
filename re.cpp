@@ -31,24 +31,22 @@
  * character in a binary string !
  */
  
-#include	"bvi.h"
-#include	"set.h"
+#include	"bvi.hpp"
+#include	"set.hpp"
 
-static	int sbracket();
+static	int sbracket(int start, char *scan, int count);
 
 char	act_pat[MAXCMD];  /* found pattern */
 char	pattern[MAXCMD + 1];
 char	search_pat[BUFFER];	/* / or ? command */
-char	*notfound = "Fail|Pattern not found";
-char	*noprev = "No previous expression";
-char	*emptyclass = "Bad character class|Empty byte class '[]' or '[^]' cannot match";
+const char	*notfound = "Fail|Pattern not found";
+const char	*noprev = "No previous expression";
+const char	*emptyclass = "Bad character class|Empty byte class '[]' or '[^]' cannot match";
 
 
 
 PTR
-bregexec(start, scan)
-	PTR		start;
-	char	*scan;
+bregexec(PTR start, char *scan)
 {
 	char	*act;
 	int		count, test;
@@ -62,11 +60,11 @@ bregexec(start, scan)
 					else 						test = *start;
 				if (count == 1) {
 					/* if (test != *scan) return 0; */
-					if (test != *scan) return NULL;
+					if (test != *scan) return nullptr;
 					scan++;
 				} else if (count > 1) {
 					/* if (sbracket(test, scan, count)) return 0; */
-					if (sbracket(test, scan, count)) return NULL;
+					if (sbracket(test, scan, count)) return nullptr;
 					scan += count;
 				}
 				*act++ = *start++;
@@ -91,7 +89,7 @@ bregexec(start, scan)
 								return start;
 							}
 							/* if (sbracket(test, scan, count)) return 0; */
-							if (sbracket(test, scan, count)) return NULL;
+							if (sbracket(test, scan, count)) return nullptr;
 							*act++ = *start++;
 							if (P(P_IC) && smode == ASCII)	test = toupper(*start);
 								else 						test = *start;
@@ -123,10 +121,7 @@ bregexec(start, scan)
 
 
 static int
-sbracket(start, scan, count)
-	int		start;
-	char	*scan;
-	int		count;
+sbracket(int start, char *scan, int count)
 {
 	if (*scan++ == '^') {
 		if (!memchr(scan, start, --count)) return 0;
@@ -138,8 +133,7 @@ sbracket(start, scan, count)
 
 
 PTR
-end_word(start)
-	PTR	start;
+end_word(PTR start)
 {
 	PTR	pos;
 
@@ -153,9 +147,7 @@ end_word(start)
 /* wordsearch serves the 'W' and 'w' - command
  */
 PTR
-wordsearch(start, mode)
-	PTR		start;
-	char	mode;
+wordsearch(PTR start, char mode)
 {
 	PTR		found;
 	PTR		pos;
@@ -185,9 +177,7 @@ wordsearch(start, mode)
 /* backsearch serves the 'b' and 'B' command
  */
 PTR
-backsearch(start, mode)
-	PTR		start;
-	char	mode;
+backsearch(PTR start, char mode)
 {
 	PTR		pos;
 	int		ccount;
@@ -214,15 +204,11 @@ backsearch(start, mode)
 /* used by :s
  */
 int
-do_substitution(delim, line, startpos, endpos)
-	int		delim;
-	char	*line;
-	PTR		startpos;
-	PTR		endpos;
+do_substitution(int delim, char *line, PTR startpos, PTR endpos)
 {
 	int		n;
 	char	*found;
-	char	*cmd = NULL;
+	char	*cmd = nullptr;
 	int		repl_count = 0;
 	int		global = 0;
 	int		conf = 0;
@@ -374,14 +360,9 @@ SKIP:
  * return	address found
  */
 PTR
-searching(ch, line, startpos, endpos, flag)
-	int		ch;
-	char	*line;
-	PTR		startpos;
-	PTR		endpos;
-	int		flag;
+searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
 {
-	char	*cmd = NULL;
+	char	*cmd = nullptr;
 	PTR		found;
 	int		sdir;
 	static	char	m[2];
@@ -483,9 +464,7 @@ searching(ch, line, startpos, endpos, flag)
  * returns pointer to next character
  */
 char *
-patcpy(s1, s2, delim)
-	char	*s1, *s2;
-	char	delim;
+patcpy(char *s1, char *s2, char delim)
 {
 	while (*s2 != '\0' && *s2 != delim) {
 		if (*s2 == '\\' && *(s2 + 1) == delim) s2++;
@@ -498,14 +477,7 @@ patcpy(s1, s2, delim)
 
 
 PTR
-fsearch_end(start, end, smem, s_end)
-/*
-fsearch(start, end, smem)
-*/
-	PTR		start;
-	PTR		end;
-	char	*smem;
-	PTR		*s_end;
+fsearch_end(PTR start, PTR end, char *smem, PTR *s_end)
 {
 	PTR	spos;
 
@@ -519,15 +491,12 @@ fsearch(start, end, smem)
 		}
 	}
 	signal(SIGINT, SIG_IGN);
-	return(NULL);
+	return(nullptr);
 }
 
 
 PTR
-fsearch(start, end, smem)
-   PTR     start;
-   PTR     end;
-   char    *smem;
+fsearch(PTR start, PTR end, char *smem)
 {
    PTR     s_end;
    return fsearch_end(start, end, smem, &s_end);
@@ -535,10 +504,7 @@ fsearch(start, end, smem)
 
 
 PTR
-rsearch(start, end, smem)
-	PTR		start;
-	PTR		end;
-	char	*smem;
+rsearch(PTR start, PTR end, char *smem)
 {
 	PTR	spos;
 
@@ -550,17 +516,15 @@ rsearch(start, end, smem)
 		}
 	}
 	signal(SIGINT, SIG_IGN);
-	return(NULL);
+	return(nullptr);
 }
 
 
 /* Calculates an address of a colon command
- * returns NULL on error or default_address, if nothing found
+ * returns nullptr on error or default_address, if nothing found
  */
 PTR
-calc_addr(pointer, def_addr)
-	char	**pointer;
-	PTR		def_addr;
+calc_addr(char **pointer, PTR def_addr)
 {
 	PTR		addr;
 	int		ch, mark;
@@ -594,11 +558,11 @@ calc_addr(pointer, def_addr)
 				break;
 			} else if (mark < 'a' || mark > 'z') {
 				emsg("Marks are ' and a-z");
-				return NULL;
+				return nullptr;
 			}
-			if (markbuf[mark - 'a'] == NULL) {
+			if (markbuf[mark - 'a'] == nullptr) {
 				emsg("Mark not defined");
-				return NULL;
+				return nullptr;
 			}
 			addr = markbuf[mark - 'a'];
 			cmd++;
@@ -608,14 +572,14 @@ calc_addr(pointer, def_addr)
 			cmd = patcpy(pattern, cmd + 1, ch);
 			if (pattern[0] == '\0' && again == 0) {
 				emsg(noprev);
-				return NULL;
+				return nullptr;
 			}
 			if (pattern[0] != '\0') {
 				again = 1;
 				if (ch == '/') {
-					if (ascii_comp(search_pat, pattern)) return NULL;
+					if (ascii_comp(search_pat, pattern)) return nullptr;
 				} else {
-					if (hex_comp(search_pat, pattern)) return NULL;
+					if (hex_comp(search_pat, pattern)) return nullptr;
 				}
 			}
 			addr = fsearch(mem, maxpos - 1, search_pat);
@@ -625,14 +589,14 @@ calc_addr(pointer, def_addr)
 			cmd = patcpy(pattern, cmd + 1, ch);
 			if (pattern[0] == '\0' && again == 0) {
 				emsg(noprev);
-				return NULL;
+				return nullptr;
 			}
 			if (pattern[0] != '\0') {
 				again = 1;
 				if (ch == '?') {
-					if (ascii_comp(search_pat, pattern)) return NULL;
+					if (ascii_comp(search_pat, pattern)) return nullptr;
 				} else {
-					if (hex_comp(search_pat, pattern)) return NULL;
+					if (hex_comp(search_pat, pattern)) return nullptr;
 				}
 			}
 			addr = rsearch(maxpos - 1, mem, search_pat);

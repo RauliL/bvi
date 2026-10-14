@@ -28,8 +28,8 @@
  * See file COPYING for information on distribution conditions.
  */
 
-#include    "bvi.h"
-#include    "set.h"
+#include    "bvi.hpp"
+#include    "set.hpp"
 
 extern	long    precount;
 
@@ -48,7 +48,7 @@ char linbuf[16384];
 long hl_spat = 0;
 
 static  char    getcbuff[BUFFER];
-static  char    *getcnext = NULL;
+static  char    *getcnext = nullptr;
 
 
 /* mode: ('A') append
@@ -62,8 +62,7 @@ static  char    *getcnext = NULL;
  * characters (for "." command)
  */
 off_t
-edit(mode)
-	int	mode;
+edit(int mode)
 {
 	int		ch, ch1;
 	size_t	len;
@@ -285,8 +284,7 @@ escape:
  * else setpage()
  */
 PTR
-do_ft(ch, flag)
-	int	ch, flag;
+do_ft(int ch, int flag)
 {
 	static	int	chi;
 	static	int	chp = 1;
@@ -297,7 +295,7 @@ do_ft(ch, flag)
 	switch (ch) {
 		/*
 		case 1:		beep();
-					return NULL;					 no previous command
+					return nullptr;					 no previous command
 		case -1:	if (chp == 'f' || chp == 't') dir = BACKWARD;
 						else dir = FORWARD;
 					break;
@@ -307,14 +305,14 @@ do_ft(ch, flag)
 		*/
 		case -1:	if (chp == 1) {
 						beep();
-						return NULL;
+						return nullptr;
 					}
 					if (chp == 'f' || chp == 't') dir = BACKWARD;
 						else dir = FORWARD;
 					break;
 		case 0:		if (chp == 1) {
 						beep();
-						return NULL;
+						return nullptr;
 					}
 					if (chp == 'f' || chp == 't') dir = FORWARD;
 						else dir = BACKWARD;
@@ -358,13 +356,12 @@ do_ft(ch, flag)
 		return(ptr);
 	}
 	beep();
-	return NULL;
+	return nullptr;
 }
 
 
 void
-do_z(mode)
-	int	mode;
+do_z(int mode)
 {
 	switch (mode) {
 	case '.':	while (y != maxy / 2) {
@@ -400,8 +397,7 @@ do_z(mode)
 
 
 void
-scrolldown(lns)
-	int	lns;
+scrolldown(int lns)
 {
 	while (lns--) {
 		if (maxpos >= (pagepos + Anzahl)) pagepos += Anzahl;
@@ -413,8 +409,7 @@ scrolldown(lns)
 
 
 void
-scrollup(lns)
-	int	lns;
+scrollup(int lns)
 {
 	while (lns--) {
 		if (mem <= (PTR)(pagepos - Anzahl)) pagepos -= Anzahl;
@@ -504,9 +499,7 @@ statpos()
 
 
 void
-printline(mempos, scpos)
-	PTR	mempos;
-	int	scpos;
+printline(PTR mempos, int scpos)
 {
 	/* int		print_pos; */
 	PTR			hl_start = 0;
@@ -534,7 +527,7 @@ printline(mempos, scpos)
 
 	for (print_pos = 0; print_pos < Anzahl; print_pos++) {
 		if (hl_spat) {
-		    while (hl_start != NULL) {
+		    while (hl_start != nullptr) {
 		        if (hl_start < mempos) {
 		            if (hl_end < mempos) {
 		                f_start = hl_start + 1;
@@ -547,7 +540,7 @@ printline(mempos, scpos)
 		            break;
 		        }
 		    }
-		    if (hl_start != NULL) {
+		    if (hl_start != nullptr) {
 		        if ((hl_start - mempos) == print_pos) {
 		            mvaddstr(scpos, mv_pos, linbuf);
 		            mv_pos = AnzAdd + (3 * print_pos);
@@ -625,8 +618,7 @@ repaint()	/***** redraw screen *********************/
 
 /******* display an arbitrary address on screen *******/
 void
-setpage(addr)
-	PTR		addr;
+setpage(PTR addr)
 {
 	if ((addr >= pagepos) && ((addr - pagepos) < screen)) {
 		y = (addr - pagepos) / Anzahl;
@@ -649,8 +641,7 @@ setpage(addr)
 
 
 int
-cur_forw(check)
-	int		check;
+cur_forw(int check)
 {
 	if (check) {
 		if (current - mem >= filesize) {
@@ -725,23 +716,22 @@ cur_back()
 
 
 void
-fileinfo(fname)
-	char	*fname;
+fileinfo(char *fname)
 {
 	off_t	bytepos;
 	char	fstatus[MAXCMD];
 	char	*string;
 
 	if (fname) {
-		string = malloc((size_t)strlen(fname) + MAXCMD);
-		if (string == NULL) {
+		string = static_cast<char*>(malloc((size_t)strlen(fname) + MAXCMD));
+		if (string == nullptr) {
 			emsg("Out of memory");
 			return;
 		}
 		sprintf(string, "\"%s\" ", fname);
 	} else {
-		string = malloc(MAXCMD);
-		if (string == NULL) {
+		string = static_cast<char*>(malloc(MAXCMD));
+		if (string == nullptr) {
 			emsg("Out of memory");
 			return;
 		}
@@ -782,11 +772,11 @@ vgetc()
 {
     int nextc;
 
-    if (getcnext != NULL) {
+    if (getcnext != nullptr) {
         nextc = *getcnext++;
         if (*getcnext == '\0') {
             *getcbuff = '\0';
-            getcnext = NULL;
+            getcnext = nullptr;
         }
         return(nextc);
     }
@@ -795,14 +785,13 @@ vgetc()
 
 
 void
-stuffin(s)
-char    *s;
+stuffin(const char *s)
 {
-    if (s == NULL) {        /* clear the stuff buffer */
-        getcnext = NULL;
+    if (s == nullptr) {        /* clear the stuff buffer */
+        getcnext = nullptr;
         return;
     }
-    if (getcnext == NULL) {
+    if (getcnext == nullptr) {
        strcpy(getcbuff, s);
        getcnext = getcbuff;
     } else
@@ -811,9 +800,7 @@ char    *s;
 
 
 void
-do_back(n, start)
-	off_t	n;
-	PTR		start;
+do_back(off_t n, PTR start)
 {
 	if (start - n < mem) {
 		beep();
@@ -835,9 +822,7 @@ do_back(n, start)
 
 
 int
-do_delete(n, start)
-	off_t	n;
-	PTR		start;
+do_delete(off_t n, PTR start)
 {
 	if (n + start > maxpos) {
 		beep();
@@ -867,17 +852,14 @@ do_delete(n, start)
  * The :insert, :append and :change command
  */
 void
-do_ins_chg(start, arg, mode)
-	PTR		start;
-	char	*arg;
-	int		mode;
+do_ins_chg(PTR start, const char *arg, int mode)
 {
 	int		base;
 	off_t	buffer = BUFFER;
 	off_t	count = 0L;
 	size_t	len;
 	long	val;
-	char	*tempbuf = NULL;
+	char	*tempbuf = nullptr;
 	char	*poi, *epoi;
 
 	if ((mode == U_EDIT) && (current - mem >= filesize)) {
@@ -975,16 +957,14 @@ clear_marks()
 {
 	int n;
 
-	for (n = 0; n < 26; markbuf[n++] = NULL);
+	for (n = 0; n < 26; markbuf[n++] = nullptr);
 	undo_count = 0;
 	last_motion = mem;
 }
 
 
 void
-do_mark(mark, addr)
-	int		mark;
-	PTR		addr;
+do_mark(int mark, PTR addr)
 {
 	if (mark < 'a' || mark > 'z' || current >= maxpos) 
 		return;

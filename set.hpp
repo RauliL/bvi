@@ -1,4 +1,4 @@
-/* SET.H
+/* SET.HPP
  *
  * NOTE: Edit this file with tabstop=4 !
  *
@@ -29,10 +29,10 @@
 
 
 struct	param {
-	char	*fullname;	/* full parameter name */
-	char	*shortname;	/* permissible abbreviation */
+	const char	*fullname;	/* full parameter name */
+	const char	*shortname;	/* permissible abbreviation */
 	off_t	nvalue;
-	char	*svalue;
+	const char	*svalue;
 	int		flags;
 };
 
