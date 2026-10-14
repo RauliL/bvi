@@ -694,7 +694,7 @@ clearstr()
 
 /**** displays an error message *****/
 void
-emsg(const char *s)
+emsg(std::string_view s)
 {
 	int	cnt;
 	int stchar;
@@ -718,15 +718,15 @@ emsg(const char *s)
 
 /*** System error message *****/
 void
-sysemsg(const char *s)
+sysemsg(std::string_view s)
 {
-	emsg(std::format("{}: {}", s, strerror(errno)).c_str());
+	emsg(std::format("{}: {}", s, strerror(errno)));
 }
 
 
 /*** displays mode if showmode set *****/
 void
-smsg(const char *s)
+smsg(std::string_view s)
 {
 	if (B(P_MO)) {
 		msg(s);
@@ -737,7 +737,7 @@ smsg(const char *s)
 
 /************* displays s on status line *****************/
 void
-msg(const char *s)
+msg(std::string_view s)
 {
 	int stchar;
 
@@ -755,26 +755,23 @@ msg(const char *s)
 
 
 int
-outmsg(const char *s)
+outmsg(std::string_view s)
 {
-	const char	*poi;
 	int		cnt = 0;
 
 	move(maxy, 0);
-	poi = strchr(s, '|');
+	const auto pipe = s.find('|');
 
 	if (B(P_TE)) {
-		poi = s;
-		while (*poi != '\0' && *poi != '@' && *poi != '|') {
-			addch(*poi++);
-			cnt++; }
+		for (char ch : s) {
+			if (ch == '\0' || ch == '@' || ch == '|') break;
+			addch(ch);
+			cnt++;
+		}
 	} else {
-    	if (poi) poi++;
-			else poi = s;
-		while (*poi) {
-			if (*poi == '@') addch(' ');
-				else addch(*poi);
-			poi++;
+		std::string_view out = (pipe == std::string_view::npos) ? s : s.substr(pipe + 1);
+		for (char ch : out) {
+			addch(ch == '@' ? ' ' : ch);
 			cnt++;
 		}
 	}

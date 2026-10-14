@@ -37,6 +37,8 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <format>
+
 
 
 const char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
@@ -54,7 +56,6 @@ PTR		pagepos;
 PTR		spos;
 char	*name = nullptr;
 const char	*shell;
-char	string[MAXCMD+1];
 char	cmdstr[MAXCMD+1] = "";
 FILE	*Ausgabe_Datei;
 int		edits = 0;
@@ -489,8 +490,7 @@ main(int argc, char *argv[])
 						setpage(mem + inaddr);
 					} else {
 						if (filesize == 0L) break;
-						sprintf(string, "Max. address of current file : %06llX", (long long unsigned)(filesize - 1L + P(P_OF)));
-						emsg(string);
+						emsg(std::format("Max. address of current file : {:06X}", (unsigned long long)(filesize - 1L + P(P_OF))));
 					}
 					break;
 		case '?':
@@ -574,8 +574,7 @@ main(int argc, char *argv[])
 		case 'y':	count = range(ch);
 					if (count > 0) {
 /*
-  sprintf(string, "$%ld$", (long)yanked);
-  msg(string);
+  msg(std::format("${}$", yanked));
   vgetc();
 */
 						if ((yanked = alloc_buf((off_t)count, &yank_buf)) == 0L) {
@@ -591,8 +590,7 @@ main(int argc, char *argv[])
 						break;
 					}
 /*
-					sprintf(string, "%ld bytes yanked", labs(count));
-					msg(string);
+					msg(std::format("{} bytes yanked", labs(count)));
 */
 					break;
 		case 'z':	do_z(vgetc());

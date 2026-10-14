@@ -34,6 +34,9 @@
 #include	"bvi.hpp"
 #include	"set.hpp"
 
+#include <format>
+#include <string>
+
 static	int sbracket(int start, const char *scan, int count);
 
 char	act_pat[MAXCMD];  /* found pattern */
@@ -239,9 +242,7 @@ do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 				case 'r':	repl_pat[pat_len++] = '\r'; break;
 				case 't':	repl_pat[pat_len++] = '\t'; break;
 				case '\\':	repl_pat[pat_len++] = '\\'; break;
-				default:	sprintf(string,
-					"No such escape sequence \\%c", *poi);
-					emsg(string);
+				default:	emsg(std::format("No such escape sequence \\{}", *poi));
 					return 0;
 				}
 			} else {
@@ -316,11 +317,10 @@ AGAIN:
 				emsg(notfound);
 			} else {
 				if (B(P_TE))
-				  sprintf(string, "No match to %s", direct == FORWARD ? "BOTTOM" : "TOP");
+				  emsg(std::format("No match to {}", direct == FORWARD ? "BOTTOM" : "TOP"));
 				else
-				  sprintf(string, "Address search hit %s without matching pattern",
-						direct == FORWARD ? "BOTTOM" : "TOP");
-				emsg(string);
+				  emsg(std::format("Address search hit {} without matching pattern",
+						direct == FORWARD ? "BOTTOM" : "TOP"));
 			}
 		}
 		return repl_count;
@@ -434,12 +434,11 @@ searching(int ch, const char *line, PTR startpos, PTR endpos, int flag)
 			emsg(notfound);
 		} else {
 			if (B(P_TE)) {
-			  sprintf(string, "No match to %s", sdir == FORWARD ? "BOTTOM" : "TOP");
+			  emsg(std::format("No match to {}", sdir == FORWARD ? "BOTTOM" : "TOP"));
 			} else {
-			  sprintf(string, "Address search hit %s without matching pattern",
-					sdir == FORWARD ? "BOTTOM" : "TOP");
+			  emsg(std::format("Address search hit {} without matching pattern",
+					sdir == FORWARD ? "BOTTOM" : "TOP"));
 			}
-			emsg(string);
 		}
 	} else {
 		setpage(found);

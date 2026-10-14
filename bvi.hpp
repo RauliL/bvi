@@ -38,6 +38,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <csetjmp>
+#include <string_view>
 
 #define JOEHTG
 
@@ -153,7 +154,6 @@ extern	const char	*terminal;
 extern	char	*undo_buf;
 extern	char	*yank_buf;
 extern	int		repl_count;
-extern	char	string[];
 extern	const char	*shell;
 extern	char	*poi;
 extern	int		smode;
@@ -196,7 +196,7 @@ int		do_delete(off_t n, PTR start);
 int		doset(const char *arg);
 int		do_substitution(int delim, const char *line, PTR startpos, PTR endpos);
 int		hexchar();
-int		outmsg(const char *s);
+int		outmsg(std::string_view s);
 PTR		searching(int ch, const char *line, PTR startpos, PTR endpos, int flag);
 PTR		wordsearch(PTR start, char mode);
 PTR		backsearch(PTR start, char mode);
@@ -209,9 +209,9 @@ PTR		calc_addr(char **pointer, PTR def_addr);
 PTR		do_ft(int ch, bool flag);
 const char	*patcpy(char *s1, const char *s2, char delim);
 void	setpage(PTR addr);
-void	msg(const char *s);
-void	emsg(const char *s);
-void	smsg(const char *s);
+void	msg(std::string_view s);
+void	emsg(std::string_view s);
+void	smsg(std::string_view s);
 void	usage();
 void	bvi_init(const char *dir);
 void	statpos();
@@ -226,9 +226,9 @@ void	clear_marks();
 void	new_screen();
 void	repaint();
 void	quit();
-void	sysemsg(const char *s);
+void	sysemsg(std::string_view s);
 void	do_z(int mode);
-void	stuffin(const char *s);
+void	stuffin(std::string_view s);
 off_t	edit(int mode);
 off_t	load(const char *fname);
 int     ascii_comp(char *smem, const char *pattern);

@@ -31,6 +31,7 @@
 #include    "bvi.hpp"
 #include    "set.hpp"
 
+#include <algorithm>
 #include <format>
 #include <string>
 
@@ -511,13 +512,14 @@ printline(PTR mempos, int scpos)
 	PTR			f_end = 0;
 	int			print_pos = 0, mv_pos = 0;
 	unsigned char cur_ch;
+	char		asc[MAXCMD+1];
 
 	if (mempos > maxpos) {
 		strcpy(linbuf, "~         ");
 	} else {
 
 		sprintf(linbuf, addr_form, (long long)(mempos - mem + P(P_OF)));
-		*string = '\0';
+		*asc = '\0';
 	}
 	mvaddstr(scpos, mv_pos, linbuf);
 	mv_pos = AnzAdd;
@@ -571,15 +573,15 @@ printline(PTR mempos, int scpos)
 		}
 		strcat(linbuf, tmpbuf);
 		if (isprint(cur_ch))
-			*(string + print_pos) = cur_ch;
+			*(asc + print_pos) = cur_ch;
 		else
-			*(string + print_pos) = '.';
+			*(asc + print_pos) = '.';
 	}
 	mvaddstr(scpos, mv_pos, linbuf);
 	mv_pos = AnzAdd + (3 * print_pos);
 	attrset(A_NORMAL);
-	*(string + Anzahl) = '\0';
-	mvaddstr(scpos, mv_pos, string);
+	*(asc + Anzahl) = '\0';
+	mvaddstr(scpos, mv_pos, asc);
 }
 
 
@@ -773,17 +775,20 @@ vgetc()
 
 
 void
-stuffin(const char *s)
+stuffin(std::string_view s)
 {
-    if (s == nullptr) {        /* clear the stuff buffer */
-        getcnext = nullptr;
-        return;
-    }
     if (getcnext == nullptr) {
-       strcpy(getcbuff, s);
+       if (s.size() >= BUFFER) s = s.substr(0, BUFFER - 1);
+       memcpy(getcbuff, s.data(), s.size());
+       getcbuff[s.size()] = '\0';
        getcnext = getcbuff;
-    } else
-       strcat(getcbuff, s);
+    } else {
+       size_t have = strlen(getcbuff);
+       size_t room = (have < BUFFER - 1) ? (BUFFER - 1 - have) : 0;
+       size_t n = std::min(room, s.size());
+       memcpy(getcbuff + have, s.data(), n);
+       getcbuff[have + n] = '\0';
+    }
 }
 
 

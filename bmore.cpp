@@ -32,6 +32,8 @@
 
 #include "bmore.hpp"
 
+#include <string_view>
+
 const char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
 
 int		maxx, maxy;
@@ -911,12 +913,12 @@ emsg(string);
 
 
 void
-emsg(const char *s)
+emsg(std::string_view s)
 {
 	putchar('\r');
 	cleartoeol();
 	highlight();
-	printf("%s", s);
+	printf("%.*s", static_cast<int>(s.size()), s.data());
 	normal();
 	fflush(stdout);
 	prompt = 0;

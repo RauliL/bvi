@@ -37,6 +37,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <csetjmp>
+#include <string_view>
 
 #include "patchlevel.h"
 #include "config.h"
@@ -103,7 +104,7 @@ void	bmbeep();
 void	home();
 void	sig(int sig);
 void	doshell(const char *cmd);
-void	emsg(const char *s);
+void	emsg(std::string_view s);
 void	do_next(int n);
 void	bmsearch(int ch);
 void	pushback(int n, const char *where);
