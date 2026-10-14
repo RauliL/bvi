@@ -27,49 +27,50 @@
  */
  
 
-#include	"bvi.h"
-#include	"set.h"
+#include	"bvi.hpp"
+#include	"set.hpp"
+
+#include	<string>
 
 
 char	*poi;
 int		smode;
-int		again = 0;
-int		magic = 1;
-int		ignore_case = 0;
+bool		again = false;
+bool		magic = true;
+bool		ignore_case = false;
 
 extern	long	bytepos;
-extern	int		ignore_case;
-extern	char	*emptyclass;
+extern	bool	ignore_case;
+extern	const char	*emptyclass;
 
 /*
  *  Compiling an ASCII sequence to a regex string
  */
 int
-ascii_comp(smem, pattern)
-	char	*smem;
-	char	*pattern;
+ascii_comp(char *smem, const char *pattern)
 {
 	char	*end;
 	char	*comp;
 	char	cc, cc1;
 	char	*counter;
 	int		count;
-	int		bracket, dot;
+	bool	bracket, dot;
+	std::string pat_buf{pattern};
 
 	comp = smem;
-	poi = pattern;
+	poi = pat_buf.data();
 	while (*poi != END) {
-		bracket = FALSE;
+		bracket = false;
 		if (magic) {
-			if (*poi == '[') bracket = TRUE;
+			if (*poi == '[') bracket = true;
 		} else {
 			if (*poi == '\\' && *(poi + 1) == '[') {
-				bracket = TRUE;
+				bracket = true;
 				poi++;
 			}
 		}
 		if (bracket) {
-			if (!(end = strchr(poi, ']'))) {
+			if (!(end = std::strchr(poi, ']'))) {
 				emsg("Missing ]");
 				return 1; }
 			poi++;
@@ -93,8 +94,8 @@ ascii_comp(smem, pattern)
 			while (end > poi) {
 				if (*poi == '-') {
 					if (ignore_case) {
-						cc = toupper(*(poi - 1));
-						cc1 = toupper(*(poi + 1));
+						cc = std::toupper(*(poi - 1));
+						cc1 = std::toupper(*(poi + 1));
 					} else {
 						cc = *(poi - 1);
 						cc1 = *(poi + 1);
@@ -107,7 +108,7 @@ ascii_comp(smem, pattern)
 				} else {
 					count++;
 					if (ignore_case)
-						*comp++ = toupper(*poi++);
+						*comp++ = std::toupper(*poi++);
 					else
 						*comp++ = *poi++;
 				}
@@ -115,12 +116,12 @@ ascii_comp(smem, pattern)
 			poi++;
 			*counter = count;
 		} else {
-			dot = FALSE;
+			dot = false;
 			if (magic) {
-				if (*poi == '.') dot = TRUE;
+				if (*poi == '.') dot = true;
 			} else {
 				if (*poi == '\\' && *(poi + 1) == '.') {
-					dot = TRUE; poi++; }
+					dot = true; poi++; }
 			}
 
 			if (*poi == '\\') {
@@ -145,7 +146,7 @@ ascii_comp(smem, pattern)
 			} else {
 				*comp++ = 1;
 				if (ignore_case)
-					*comp++ = toupper(*poi++);
+					*comp++ = std::toupper(*poi++);
 				else
 					*comp++ = *poi++;
 			}
@@ -166,22 +167,21 @@ ascii_comp(smem, pattern)
  * Compiling a hex expression to a regex string
  */
 int
-hex_comp(smem, pattern)
-	char	*smem;
-	char	*pattern;
+hex_comp(char *smem, const char *pattern)
 {
 	char	*end;
 	char	*comp;
 	int		cc, ccm;
 	char	*counter;
 	int		count, nr;
+	std::string pat_buf{pattern};
 
 	comp = smem;
-	poi = pattern;
+	poi = pat_buf.data();
 	while (*poi != END) {
 		while (*poi == ' ' || *poi == '\t') poi++;
 		if (*poi == '[') {
-			if (!(end = strchr(poi, ']'))) {
+			if (!(end = std::strchr(poi, ']'))) {
 				emsg("Missing ]");
 				return 1; }
 			poi++;
@@ -221,18 +221,18 @@ hex_comp(smem, pattern)
 			if (*poi == '*') poi++;
 		} else if (*poi == '"') {
 			poi++;
-			if (!(end = strchr(poi, '"'))) {
+			if (!(end = std::strchr(poi, '"'))) {
 				/*
 				emsg("Missing '\"'");
 				return 1;
 				*/
-				end = poi + strlen(poi);
+				end = poi + std::strlen(poi);
 				}
 			while (end > poi) {
 				*comp++ = 1;
 				*comp++ = 1;
 				if (ignore_case)
-					*comp++ = toupper(*poi++);
+					*comp++ = std::toupper(*poi++);
 				else
 					*comp++ = *poi++;
 			}
@@ -264,12 +264,12 @@ hexchar()
 	int		nr;
 	char	tmpbuf[3];
 
-	if (isxdigit(*poi)) {
+	if (std::isxdigit(*poi)) {
 		tmpbuf[0] = *poi++;
 		tmpbuf[1] = '\0';
-		if (isxdigit(*poi)) tmpbuf[1] = *poi++;
+		if (std::isxdigit(*poi)) tmpbuf[1] = *poi++;
 		tmpbuf[2] = '\0';
-		sscanf(tmpbuf, "%2x", &nr);
+		std::sscanf(tmpbuf, "%2x", &nr);
         while (*poi == ' ' || *poi == '\t') poi++;
 		return nr;
 	} else {

@@ -1,4 +1,4 @@
-/* SET.H
+/* SET.HPP
  *
  * NOTE: Edit this file with tabstop=4 !
  *
@@ -27,21 +27,20 @@
  * See file COPYING for information on distribution conditions.
  */
 
+#include <string>
+#include <variant>
+#include <vector>
 
 struct	param {
-	char	*fullname;	/* full parameter name */
-	char	*shortname;	/* permissible abbreviation */
-	off_t	nvalue;
-	char	*svalue;
-	int		flags;
+	using value_type = std::variant<bool, off_t, std::string>;
+
+	const char	*fullname;	/* full parameter name */
+	const char	*shortname;	/* permissible abbreviation */
+	value_type value;
+	bool		changed;
 };
 
-extern	struct	param	params[];
-
-#define	P_BOOL		0x01	/* the parameter is boolean */
-#define	P_NUM		0x02	/* the parameter is numeric */
-#define P_TEXT		0x04	/* the paameter is text */
-#define	P_CHANGED	0x08	/* the parameter has been changed */
+extern	std::vector<param>	params;
 
 /*
  * The following are the indices in the params array for each parameter
@@ -70,6 +69,8 @@ extern	struct	param	params[];
 #define	P_CO		17	/* color/attribute setting */
 
 /*
- * Macro to get the value of a parameter
+ * Accessors for the active alternative in params[n].value
  */
-#define	P(n)	(params[n].nvalue)
+#define	P(n)	(std::get<off_t>(params[n].value))
+#define	B(n)	(std::get<bool>(params[n].value))
+#define	S(n)	(std::get<std::string>(params[n].value))

@@ -1,4 +1,4 @@
-/*  BVI.H
+/*  BVI.HPP
  *
  * 1996-02-28  V 1.0.0
  * 1999-01-21  V 1.1.0
@@ -30,14 +30,17 @@
  * See file COPYING for information on distribution conditions.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <ctype.h>
-#include <signal.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <cerrno>
+#include <cctype>
+#include <csignal>
 #include <sys/stat.h>
-#include <setjmp.h>
+#include <csetjmp>
+#include <filesystem>
+#include <string>
+#include <string_view>
 
 #define JOEHTG
 
@@ -99,46 +102,38 @@
 
 #define CMDLNG(a,b)     (len <= a && len >= b)
 
-#ifndef NULL
-#	define NULL		((void *)0)
-#endif
 
-#ifndef TRUE
-#	define TRUE		1
-#	define FALSE	0
-#endif
-
-#define PTR		char *
+using PTR = char *;
 #define DELIM	'/'
 
 #define MAXCMD	255
 #define BUFFER	1024
 
-#define SKIP_WHITE  while(*cmd!='\0'&&isspace(*cmd))cmd++;
+#define SKIP_WHITE  while(*cmd!='\0'&&std::isspace(static_cast<unsigned char>(*cmd)))cmd++;
 
-typedef enum _block_datum {
+enum block_datum {
     BLOCK_BEGIN = 1,
     BLOCK_END = 2,
     BLOCK_LEN = 4
-} block_datum;
+};
 
 #ifdef DEBUG
 	extern FILE *debug_fp;
 #endif
 
-extern	char	*version;
+extern	const char	*version;
 extern	char	addr_form[];
 extern	char	search_pat[];
-extern	long	hl_spat;
+extern	bool	hl_spat;
 extern	char    pattern[];
-extern	char    rep_buf[];
+extern	std::string	rep_buf;
 extern	int		maxx, maxy, x, y;
 extern	int		filemode, loc;
-extern	int		edits, new;
+extern	int		edits;
 extern	int		AnzAdd;
 extern	int		Anzahl, Anzahl3;
 extern	int		addr_flag;
-extern	int		ignore_case, magic;
+extern	bool	ignore_case, magic;
 extern	int		screen, status, statsize;
 extern	PTR		mem;
 extern	PTR		maxpos;
@@ -149,23 +144,23 @@ extern  PTR		curpos;
 extern	PTR		current;
 extern	PTR		start_addr;
 extern	PTR		end_addr;
-extern	char	*name, cmdstr[];
+extern	std::filesystem::path	name;
+extern	std::string	cmdstr;
 extern	off_t	filesize, memsize;
 extern	PTR		markbuf[];
 extern  PTR		last_motion;
 extern	off_t	undo_count;
 extern	off_t	yanked;
 extern	off_t	undosize;
-extern	char	*copyright, *notfound;
-extern	char	*terminal;
+extern	const char	*copyright, *notfound;
+extern	const char	*terminal;
 extern	char	*undo_buf;
 extern	char	*yank_buf;
 extern	int		repl_count;
-extern	char	string[];
-extern	char	*shell;
+extern	const char	*shell;
 extern	char	*poi;
 extern	int		smode;
-extern	int		again;
+extern	bool	again;
 extern  int     block_flag;
 extern  off_t   block_begin, block_end, block_size;
 
@@ -177,46 +172,77 @@ extern  off_t   block_begin, block_end, block_size;
 #define	S_ISFIFO(m)	((m & 0170000) == 0010000)	/* fifo */
 #endif
 
-	int		addfile();
-	off_t	alloc_buf(), yd_addr();
-	off_t	range();
-	off_t	calc_size();
-	void	do_mark(), badcmd(), movebyte();
-	void	do_back(), do_ins_chg();
-	void	jmpproc(), printline();
-	int		chk_comm();
-	void	docmdline(), do_over(), do_put();
-	int		doecmd();
-	void	do_dot(), do_exit(), do_shell(), do_undo();
-	void	do_tilde(), trunc_cur();
-	int		do_append(), do_logic();
-	int		do_delete();
-	int		doset();
-	int		do_substitution();
-	int		hexchar();
-	int		outmsg();
-	PTR		searching();
-	PTR		wordsearch();
-	PTR		backsearch();
-	/*	int		bregexec();	*/
-	PTR		bregexec();
-	PTR		fsearch();
-	PTR		fsearch_end();
-	PTR		rsearch();
-	PTR		end_word();
-	PTR		calc_addr();
-	PTR		do_ft();
-	char	*patcpy();
-	void	setpage(), msg(), emsg(), smsg();
-	void	usage(), bvi_init(), statpos(), setcur();
-	void	showparms(), toggle(), scrolldown(), scrollup();
-	void	fileinfo();
-	void	clearstr(), clear_marks(), new_screen(), repaint();
-	void	quit(), sysemsg(), do_z(), stuffin();
-	off_t	edit(), load();
-	int     ascii_comp(), hex_comp();
-	int		cur_forw(), cur_back();
-	int		lineout(), save(), at_least(), read_rc();
-	int		getcmdstr(), enlarge();
-	int		vgetc(), xpos();
-	int		wait_return();
+int		addfile(const std::filesystem::path& fname);
+off_t	alloc_buf(off_t n, char **buffer);
+off_t	yd_addr();
+off_t	range(int ch);
+off_t	calc_size(const char *arg);
+void	do_mark(int mark, PTR addr);
+void	movebyte();
+void	do_back(off_t n, PTR start);
+void	do_ins_chg(PTR start, const char *arg, int mode);
+void	jmpproc(int sig);
+void	printline(PTR mempos, int scpos);
+int		chk_comm(int flag);
+void	docmdline(const char *cmdline);
+void	do_over(PTR loc, off_t n, const char *buf);
+void	do_put(PTR loc, off_t n, const char *buf);
+bool	doecmd(const char *arg, bool force);
+void	do_exit();
+void	do_shell();
+void	do_undo();
+void	do_tilde(off_t count);
+void	trunc_cur();
+int		do_append(off_t count, const char *buf);
+int		do_logic(int mode, const char *str);
+int		do_delete(off_t n, PTR start);
+int		doset(const char *arg);
+int		do_substitution(int delim, const char *line, PTR startpos, PTR endpos);
+int		hexchar();
+int		outmsg(std::string_view s);
+PTR		searching(int ch, const char *line, PTR startpos, PTR endpos, int flag);
+PTR		wordsearch(PTR start, char mode);
+PTR		backsearch(PTR start, char mode);
+PTR		bregexec(PTR start, const char *scan);
+PTR		fsearch(PTR start, PTR end, const char *smem);
+PTR		fsearch_end(PTR start, PTR end, const char *smem, PTR *s_end);
+PTR		rsearch(PTR start, PTR end, const char *smem);
+PTR		end_word(PTR start);
+PTR		calc_addr(char **pointer, PTR def_addr);
+PTR		do_ft(int ch, bool flag);
+const char	*patcpy(char *s1, const char *s2, char delim);
+void	setpage(PTR addr);
+void	msg(std::string_view s);
+void	emsg(std::string_view s);
+void	smsg(std::string_view s);
+void	usage();
+void	bvi_init(const char *dir);
+void	statpos();
+void	setcur();
+void	showparms(bool all);
+void	toggle();
+void	scrolldown(int lns);
+void	scrollup(int lns);
+void	fileinfo(const std::filesystem::path& fname);
+void	clearstr();
+void	clear_marks();
+void	new_screen();
+void	repaint();
+void	quit();
+void	sysemsg(std::string_view s);
+void	do_z(int mode);
+void	stuffin(std::string_view s);
+off_t	edit(int mode);
+off_t	load(const std::filesystem::path& fname);
+int     ascii_comp(char *smem, const char *pattern);
+int     hex_comp(char *smem, const char *pattern);
+int		cur_forw(bool check);
+int		cur_back();
+int		lineout();
+int		save(const std::filesystem::path& fname, const char *start, const char *end, int flags);
+int		read_rc(const std::filesystem::path& fn);
+int		getcmdstr(std::string& p, int x);
+int		enlarge(off_t add);
+int		vgetc();
+int		xpos();
+bool	wait_return(bool flag);

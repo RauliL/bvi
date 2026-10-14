@@ -1,5 +1,11 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
-PROJECT(bvi C)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.16)
+PROJECT(bvi CXX)
+
+SET(CMAKE_CXX_STANDARD 20)
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+SET(CMAKE_CXX_EXTENSIONS OFF)
+
+ADD_COMPILE_OPTIONS(-Wwrite-strings -Wcast-qual)
 
 OPTION(
   COMPILE_BMORE
@@ -8,7 +14,7 @@ OPTION(
 )
 
 INCLUDE(FindCurses)
-INCLUDE(CheckIncludeFile)
+INCLUDE(CheckIncludeFileCXX)
 
 IF(NOT ${CURSES_FOUND})
   MESSAGE(FATAL_ERROR "Could not find Curses library on your platform.")
@@ -20,8 +26,8 @@ IF(${CURSES_HAVE_CURSES_H})
   SET(HAVE_CURSES_H 1)
 ENDIF()
 
-CHECK_INCLUDE_FILE(fcntl.h HAVE_FCNTL_H)
-CHECK_INCLUDE_FILE(unistd.h HAVE_UNISTD_H)
+CHECK_INCLUDE_FILE_CXX(fcntl.h HAVE_FCNTL_H)
+CHECK_INCLUDE_FILE_CXX(unistd.h HAVE_UNISTD_H)
 
 CONFIGURE_FILE(
   ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
@@ -30,13 +36,13 @@ CONFIGURE_FILE(
 
 ADD_EXECUTABLE(
   bvi
-  bvi.c
-  comm.c
-  edit.c
-  io.c
-  re.c
-  recomp.c
-  set.c
+  bvi.cpp
+  comm.cpp
+  edit.cpp
+  io.cpp
+  re.cpp
+  recomp.cpp
+  set.cpp
 )
 TARGET_INCLUDE_DIRECTORIES(bvi PRIVATE ${CURSES_INCLUDE_DIRS})
 TARGET_LINK_LIBRARIES(bvi ${CURSES_LIBRARIES})
@@ -46,9 +52,9 @@ INSTALL(FILES bvi.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 COMPONENT doc)
 IF(COMPILE_BMORE)
   ADD_EXECUTABLE(
     bmore
-    bmore.c
-    bm_unix.c
-    recomp.c
+    bmore.cpp
+    bm_unix.cpp
+    recomp.cpp
   )
   TARGET_INCLUDE_DIRECTORIES(bmore PRIVATE ${CURSES_INCLUDE_DIRS})
   TARGET_LINK_LIBRARIES(bmore ${CURSES_LIBRARIES})

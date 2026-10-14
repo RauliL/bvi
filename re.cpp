@@ -31,24 +31,25 @@
  * character in a binary string !
  */
  
-#include	"bvi.h"
-#include	"set.h"
+#include	"bvi.hpp"
+#include	"set.hpp"
 
-static	int sbracket();
+#include <format>
+#include <string>
+
+static	int sbracket(int start, const char *scan, int count);
 
 char	act_pat[MAXCMD];  /* found pattern */
 char	pattern[MAXCMD + 1];
 char	search_pat[BUFFER];	/* / or ? command */
-char	*notfound = "Fail|Pattern not found";
-char	*noprev = "No previous expression";
-char	*emptyclass = "Bad character class|Empty byte class '[]' or '[^]' cannot match";
+const char	*notfound = "Fail|Pattern not found";
+const char	*noprev = "No previous expression";
+const char	*emptyclass = "Bad character class|Empty byte class '[]' or '[^]' cannot match";
 
 
 
 PTR
-bregexec(start, scan)
-	PTR		start;
-	char	*scan;
+bregexec(PTR start, const char *scan)
 {
 	char	*act;
 	int		count, test;
@@ -58,27 +59,27 @@ bregexec(start, scan)
 		switch (*scan++) {
 		case ONE:	/* exactly one character */
 				count = *scan++;
-				if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+				if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 					else 						test = *start;
 				if (count == 1) {
 					/* if (test != *scan) return 0; */
-					if (test != *scan) return NULL;
+					if (test != *scan) return nullptr;
 					scan++;
 				} else if (count > 1) {
 					/* if (sbracket(test, scan, count)) return 0; */
-					if (sbracket(test, scan, count)) return NULL;
+					if (sbracket(test, scan, count)) return nullptr;
 					scan += count;
 				}
 				*act++ = *start++;
 				break;
 		case STAR:  /* zero or more characters */
 				count = *scan++;
-				if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+				if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 					else 						test = *start;
 				if (count == 1) {	/* only one character, 0 - n times */
 					while(test == *scan) {
 						*act++ = *start++;
-						if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+						if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 							else 						test = *start;
 					}
 					scan++;
@@ -91,15 +92,15 @@ bregexec(start, scan)
 								return start;
 							}
 							/* if (sbracket(test, scan, count)) return 0; */
-							if (sbracket(test, scan, count)) return NULL;
+							if (sbracket(test, scan, count)) return nullptr;
 							*act++ = *start++;
-							if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+							if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 								else 						test = *start;
 							}
 					} else {
 						while(!sbracket(test, scan, count)) {
 							*act++ = *start++;
-							if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+							if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 								else 						test = *start;
 						}
 						scan += count;
@@ -123,29 +124,25 @@ bregexec(start, scan)
 
 
 static int
-sbracket(start, scan, count)
-	int		start;
-	char	*scan;
-	int		count;
+sbracket(int start, const char *scan, int count)
 {
 	if (*scan++ == '^') {
-		if (!memchr(scan, start, --count)) return 0;
+		if (!std::memchr(scan, start, --count)) return 0;
 	} else {
-		if (memchr(scan, start, --count)) return 0;
+		if (std::memchr(scan, start, --count)) return 0;
 	}
 	return 1;
 }
 
 
 PTR
-end_word(start)
-	PTR	start;
+end_word(PTR start)
 {
 	PTR	pos;
 
 	pos = start;
-	if (!isprint(*pos & 0xff)) return start;
-	while (isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
+	if (!std::isprint(*pos & 0xff)) return start;
+	while (std::isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
 	return --pos;
 }
 
@@ -153,9 +150,7 @@ end_word(start)
 /* wordsearch serves the 'W' and 'w' - command
  */
 PTR
-wordsearch(start, mode)
-	PTR		start;
-	char	mode;
+wordsearch(PTR start, char mode)
 {
 	PTR		found;
 	PTR		pos;
@@ -163,11 +158,11 @@ wordsearch(start, mode)
 
 	pos = start + 1;
 	do {
-		while (isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
-		while (!isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
+		while (std::isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
+		while (!std::isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
 		found = pos;
 		ccount = 0;
-		while (isprint(*pos & 0xff)) {
+		while (std::isprint(*pos & 0xff)) {
 			if (pos++ > maxpos) return start;
 			ccount++; }
 		if (ccount < P(P_WL)) continue;
@@ -185,9 +180,7 @@ wordsearch(start, mode)
 /* backsearch serves the 'b' and 'B' command
  */
 PTR
-backsearch(start, mode)
-	PTR		start;
-	char	mode;
+backsearch(PTR start, char mode)
 {
 	PTR		pos;
 	int		ccount;
@@ -197,11 +190,11 @@ backsearch(start, mode)
 		if (mode == 'B') {
 			while (*pos != '\0' && *pos != '\n') if (pos-- < mem) return start;
 		} else {
-			while (!isprint(*pos & 0xff))		if (pos-- < mem) return start;
+			while (!std::isprint(*pos & 0xff))		if (pos-- < mem) return start;
 		}
 		pos--;
 		ccount = 0;
-		while (isprint(*pos & 0xff)) {
+		while (std::isprint(*pos & 0xff)) {
 			if (pos-- < mem) return start;
 			ccount++; }
 		if (ccount >= P(P_WL)) 	return (pos + 1);
@@ -214,26 +207,22 @@ backsearch(start, mode)
 /* used by :s
  */
 int
-do_substitution(delim, line, startpos, endpos)
-	int		delim;
-	char	*line;
-	PTR		startpos;
-	PTR		endpos;
+do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 {
 	int		n;
 	char	*found;
-	char	*cmd = NULL;
+	const char	*cmd = nullptr;
 	int		repl_count = 0;
-	int		global = 0;
-	int		conf = 0;
+	bool		global = false;
+	bool		conf = false;
 	static	int		direct;
 	static	int		pat_len = -1;
 	static	int		ch;
 	static	char	find_pat[BUFFER];
 	static	char	repl_pat[MAXCMD];
 
-	ignore_case = P(P_IC);
-	magic = P(P_MA);
+	ignore_case = B(P_IC);
+	magic = B(P_MA);
 	switch (delim) {
 	case '/':
 	case '?':
@@ -253,9 +242,7 @@ do_substitution(delim, line, startpos, endpos)
 				case 'r':	repl_pat[pat_len++] = '\r'; break;
 				case 't':	repl_pat[pat_len++] = '\t'; break;
 				case '\\':	repl_pat[pat_len++] = '\\'; break;
-				default:	sprintf(string,
-					"No such escape sequence \\%c", *poi);
-					emsg(string);
+				default:	emsg(std::format("No such escape sequence \\{}", *poi));
 					return 0;
 				}
 			} else {
@@ -299,11 +286,11 @@ do_substitution(delim, line, startpos, endpos)
 		return -1;
 	}
 	if (delim != '\0') {
-		if (strchr(cmd, 'g')) global = 1;
-		if (strchr(cmd, 'c')) conf = 1;
+		if (std::strchr(cmd, 'g')) global = true;
+		if (std::strchr(cmd, 'c')) conf = true;
 	}
-	if ((strchr("\\#", ch) && loc == ASCII)
-		|| (strchr("/?", ch) && loc == HEX)) {
+	if ((std::strchr("\\#", ch) && loc == ASCII)
+		|| (std::strchr("/?", ch) && loc == HEX)) {
 				toggle();
 	}
 	startpos--;
@@ -312,7 +299,7 @@ do_substitution(delim, line, startpos, endpos)
 
 	if (global) {
 		if ((undo_count = alloc_buf(endpos - startpos, &undo_buf))) {
-			memcpy(undo_buf, startpos + 1, undo_count);
+			std::memcpy(undo_buf, startpos + 1, undo_count);
 		}
 		undo_start = startpos + 1;
 		edits = U_EDIT;
@@ -326,15 +313,14 @@ AGAIN:
 	}
 	if (!found) {
 		if (!repl_count) {
-			if (P(P_WS)) {
+			if (B(P_WS)) {
 				emsg(notfound);
 			} else {
-				if (P(P_TE))
-				  sprintf(string, "No match to %s", direct == FORWARD ? "BOTTOM" : "TOP");
+				if (B(P_TE))
+				  emsg(std::format("No match to {}", direct == FORWARD ? "BOTTOM" : "TOP"));
 				else
-				  sprintf(string, "Address search hit %s without matching pattern",
-						direct == FORWARD ? "BOTTOM" : "TOP");
-				emsg(string);
+				  emsg(std::format("Address search hit {} without matching pattern",
+						direct == FORWARD ? "BOTTOM" : "TOP"));
 			}
 		}
 		return repl_count;
@@ -350,12 +336,12 @@ AGAIN:
 		current_start = pagepos + y * Anzahl + xpos();
 		if (!global) {
 			if ((undo_count = alloc_buf(pat_len, &undo_buf))) {
-				memcpy(undo_buf, current_start, undo_count);
+				std::memcpy(undo_buf, current_start, undo_count);
 			}
 			undo_start = current_start;
 			edits = U_EDIT;
 		}
-		memcpy(current_start, repl_pat, pat_len);
+		std::memcpy(current_start, repl_pat, pat_len);
 SKIP:
 		if (global)  {
 			startpos = found + pat_len - 1;
@@ -374,14 +360,9 @@ SKIP:
  * return	address found
  */
 PTR
-searching(ch, line, startpos, endpos, flag)
-	int		ch;
-	char	*line;
-	PTR		startpos;
-	PTR		endpos;
-	int		flag;
+searching(int ch, const char *line, PTR startpos, PTR endpos, int flag)
 {
-	char	*cmd = NULL;
+	const char	*cmd = nullptr;
 	PTR		found;
 	int		sdir;
 	static	char	m[2];
@@ -392,14 +373,14 @@ searching(ch, line, startpos, endpos, flag)
 		return 0L;
 	}
 
-	ignore_case = (P(P_IC));
-	magic = P(P_MA);
+	ignore_case = (B(P_IC));
+	magic = B(P_MA);
 	start_addr--;
-	if ((strchr("\\#", ch) && loc == ASCII)
-		|| (strchr("/?", ch) && loc == HEX)) {
+	if ((std::strchr("\\#", ch) && loc == ASCII)
+		|| (std::strchr("/?", ch) && loc == HEX)) {
 				toggle();
 	}
-	if (!strchr("Nn", ch)) {
+	if (!std::strchr("Nn", ch)) {
 		m[0] = ch;
 		m[1] = '\0';
 		switch (ch) {
@@ -409,7 +390,7 @@ searching(ch, line, startpos, endpos, flag)
 			cmd = patcpy(pattern, line, ch);
 			if (pattern[0] != '\0') {
 				if (ascii_comp(search_pat, pattern)) return 0L;
-				again = 1;
+				again = true;
 			}
 			break;
 		case '#':
@@ -418,7 +399,7 @@ searching(ch, line, startpos, endpos, flag)
 			cmd = patcpy(pattern, line, ch);
 			if (pattern[0] != '\0') {
 				if (hex_comp(search_pat, pattern)) break;
-				again = 1;
+				again = true;
 			}
 			break;
 		}
@@ -452,13 +433,12 @@ searching(ch, line, startpos, endpos, flag)
 		if (flag & 1) {
 			emsg(notfound);
 		} else {
-			if (P(P_TE)) {
-			  sprintf(string, "No match to %s", sdir == FORWARD ? "BOTTOM" : "TOP");
+			if (B(P_TE)) {
+			  emsg(std::format("No match to {}", sdir == FORWARD ? "BOTTOM" : "TOP"));
 			} else {
-			  sprintf(string, "Address search hit %s without matching pattern",
-					sdir == FORWARD ? "BOTTOM" : "TOP");
+			  emsg(std::format("Address search hit {} without matching pattern",
+					sdir == FORWARD ? "BOTTOM" : "TOP"));
 			}
-			emsg(string);
 		}
 	} else {
 		setpage(found);
@@ -482,10 +462,8 @@ searching(ch, line, startpos, endpos, flag)
 /* Copies a string from s2 to s1, up to delim or 0
  * returns pointer to next character
  */
-char *
-patcpy(s1, s2, delim)
-	char	*s1, *s2;
-	char	delim;
+const char *
+patcpy(char *s1, const char *s2, char delim)
 {
 	while (*s2 != '\0' && *s2 != delim) {
 		if (*s2 == '\\' && *(s2 + 1) == delim) s2++;
@@ -498,36 +476,26 @@ patcpy(s1, s2, delim)
 
 
 PTR
-fsearch_end(start, end, smem, s_end)
-/*
-fsearch(start, end, smem)
-*/
-	PTR		start;
-	PTR		end;
-	char	*smem;
-	PTR		*s_end;
+fsearch_end(PTR start, PTR end, const char *smem, PTR *s_end)
 {
 	PTR	spos;
 
-	signal(SIGINT, jmpproc);
+	std::signal(SIGINT, jmpproc);
 	for (spos = start; spos <= end; spos++) {
 		/* if (bregexec(spos, smem)) { */
 		if (*s_end = bregexec(spos, smem)) {
-			signal(SIGINT, SIG_IGN);
+			std::signal(SIGINT, SIG_IGN);
 			*s_end++;
 			return(spos);
 		}
 	}
-	signal(SIGINT, SIG_IGN);
-	return(NULL);
+	std::signal(SIGINT, SIG_IGN);
+	return(nullptr);
 }
 
 
 PTR
-fsearch(start, end, smem)
-   PTR     start;
-   PTR     end;
-   char    *smem;
+fsearch(PTR start, PTR end, const char *smem)
 {
    PTR     s_end;
    return fsearch_end(start, end, smem, &s_end);
@@ -535,32 +503,27 @@ fsearch(start, end, smem)
 
 
 PTR
-rsearch(start, end, smem)
-	PTR		start;
-	PTR		end;
-	char	*smem;
+rsearch(PTR start, PTR end, const char *smem)
 {
 	PTR	spos;
 
-	signal(SIGINT, jmpproc);
+	std::signal(SIGINT, jmpproc);
 	for (spos = start; spos >= end; spos--) {
 		if (bregexec(spos, smem)) {
-			signal(SIGINT, SIG_IGN);
+			std::signal(SIGINT, SIG_IGN);
 			return(spos);
 		}
 	}
-	signal(SIGINT, SIG_IGN);
-	return(NULL);
+	std::signal(SIGINT, SIG_IGN);
+	return(nullptr);
 }
 
 
 /* Calculates an address of a colon command
- * returns NULL on error or default_address, if nothing found
+ * returns nullptr on error or default_address, if nothing found
  */
 PTR
-calc_addr(pointer, def_addr)
-	char	**pointer;
-	PTR		def_addr;
+calc_addr(char **pointer, PTR def_addr)
 {
 	PTR		addr;
 	int		ch, mark;
@@ -570,7 +533,7 @@ calc_addr(pointer, def_addr)
 	addr = def_addr;
 	SKIP_WHITE
 	if (*cmd >= '1' && *cmd <= '9')  {
-		addr = mem + strtoll(cmd, &cmd, 10) - P(P_OF);
+		addr = mem + std::strtoll(cmd, &cmd, 10) - P(P_OF);
 	} else {
 		ch = *cmd;
 		switch (ch) {
@@ -594,51 +557,51 @@ calc_addr(pointer, def_addr)
 				break;
 			} else if (mark < 'a' || mark > 'z') {
 				emsg("Marks are ' and a-z");
-				return NULL;
+				return nullptr;
 			}
-			if (markbuf[mark - 'a'] == NULL) {
+			if (markbuf[mark - 'a'] == nullptr) {
 				emsg("Mark not defined");
-				return NULL;
+				return nullptr;
 			}
 			addr = markbuf[mark - 'a'];
 			cmd++;
 			break;
 		case '\\':
 		case '/':
-			cmd = patcpy(pattern, cmd + 1, ch);
+			cmd = const_cast<char *>(patcpy(pattern, cmd + 1, ch));
 			if (pattern[0] == '\0' && again == 0) {
 				emsg(noprev);
-				return NULL;
+				return nullptr;
 			}
 			if (pattern[0] != '\0') {
-				again = 1;
+				again = true;
 				if (ch == '/') {
-					if (ascii_comp(search_pat, pattern)) return NULL;
+					if (ascii_comp(search_pat, pattern)) return nullptr;
 				} else {
-					if (hex_comp(search_pat, pattern)) return NULL;
+					if (hex_comp(search_pat, pattern)) return nullptr;
 				}
 			}
 			addr = fsearch(mem, maxpos - 1, search_pat);
 			break;
 		case '#':
 		case '?':
-			cmd = patcpy(pattern, cmd + 1, ch);
+			cmd = const_cast<char *>(patcpy(pattern, cmd + 1, ch));
 			if (pattern[0] == '\0' && again == 0) {
 				emsg(noprev);
-				return NULL;
+				return nullptr;
 			}
 			if (pattern[0] != '\0') {
-				again = 1;
+				again = true;
 				if (ch == '?') {
-					if (ascii_comp(search_pat, pattern)) return NULL;
+					if (ascii_comp(search_pat, pattern)) return nullptr;
 				} else {
-					if (hex_comp(search_pat, pattern)) return NULL;
+					if (hex_comp(search_pat, pattern)) return nullptr;
 				}
 			}
 			addr = rsearch(maxpos - 1, mem, search_pat);
 			break;
 		case '0':
-			addr = mem + strtol(cmd, &cmd, 16) - P(P_OF);
+			addr = mem + std::strtol(cmd, &cmd, 16) - P(P_OF);
 			break;
 		}
 	}
@@ -647,11 +610,11 @@ calc_addr(pointer, def_addr)
 		if (*cmd == '+') {
 			cmd++;
 			SKIP_WHITE
-			addr += strtoll(cmd, &cmd, 0);
+			addr += std::strtoll(cmd, &cmd, 0);
 		} else {
 			cmd++;
 			SKIP_WHITE
-			addr -= strtoll(cmd, &cmd, 0);
+			addr -= std::strtoll(cmd, &cmd, 0);
 		}
 		SKIP_WHITE
 	}

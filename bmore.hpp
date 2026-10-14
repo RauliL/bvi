@@ -1,4 +1,4 @@
-/*  BMORE.H
+/*  BMORE.HPP
  *
  * 1996-02-28  V 1.0.0
  * 1999-01-21  V 1.1.0
@@ -7,7 +7,7 @@
  * 1999-08-21  V 1.2.0 final
  * 2000-05-31  V 1.3.0 beta
  * 2000-10-04  V 1.3.0 final
- * 2002-01-16  V 1.3.1  
+ * 2002-01-16  V 1.3.1
  * 2003-02-20  V 1.3.2
  * 2010-03-28  V 1.3.4
  *
@@ -29,14 +29,16 @@
  * See file COPYING for information on distribution conditions.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <ctype.h>
-#include <signal.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <cerrno>
+#include <cctype>
+#include <csignal>
 #include <sys/stat.h>
-#include <setjmp.h>
+#include <csetjmp>
+#include <filesystem>
+#include <string_view>
 
 #include "patchlevel.h"
 #include "config.h"
@@ -45,7 +47,7 @@
 #  include <ncurses.h>
 #else
 #  include <curses.h>
-#endif 
+#endif
 #include <term.h>
 
 
@@ -74,16 +76,8 @@
 #define REPLACE		1
 #define BVICTRL(n)		(n&0x1f)
 
-#ifndef NULL
-#	define NULL		((void *)0)
-#endif
 
-#ifndef TRUE
-#	define TRUE		1
-#	define FALSE	0
-#endif
-
-#define PTR		char *
+using PTR = char *;
 #define DELIM	'/'
 
 #define MAXCMD	255
@@ -94,25 +88,34 @@
 	extern FILE *debug_fp;
 #endif
 
-extern	char	*version;
+extern	const char	*version;
 extern	int		maxx, maxy;
-extern	int		ignore_case, magic;
-extern	int		no_tty, no_intty;
+extern	bool	ignore_case, magic;
+extern	bool	no_tty, no_intty;
 
 
-
-
-	void	initterm(), set_tty(), reset_tty();
-	void	cleartoeol(), clearscreen(), highlight();
-	void	normal(), bmbeep(), home(), sig();
-	void	doshell(), emsg();
-	void	do_next();
-	void	bmsearch();
-	void	pushback();
-	int		open_file();
-	int		printout(), rdline();
-	int		nextchar(), vgetc();
-	int     sbracket();
-	int     bmregexec();
-	int		ascii_comp(), hex_comp();
-	void    putline();
+void	initterm();
+void	set_tty();
+void	reset_tty();
+void	cleartoeol();
+void	clearscreen();
+void	highlight();
+void	normal();
+void	bmbeep();
+void	home();
+void	sig(int sig);
+void	doshell(const char *cmd);
+void	emsg(std::string_view s);
+void	do_next(int n);
+void	bmsearch(int ch);
+void	pushback(int n, const char *where);
+int		open_file(const std::filesystem::path& name);
+int		printout(int lns);
+int		rdline(int ch, char *sstring);
+int		nextchar();
+int		vgetc();
+int     sbracket(int start, const char *scan, int count);
+int     bmregexec(const char *scan);
+int		ascii_comp(char *smem, const char *pattern);
+int		hex_comp(char *smem, const char *pattern);
+void    putline(const char *buf, int num);

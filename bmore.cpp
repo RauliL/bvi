@@ -28,19 +28,27 @@
 
 
 #include <sys/types.h>
-#include <locale.h>
+#include <clocale>
 
-#include "bmore.h"
+#include "bmore.hpp"
 
-char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
+#include <filesystem>
+#include <format>
+#include <string>
+#include <string_view>
+#include <system_error>
+
+namespace fs = std::filesystem;
+
+const char	*copyright  = "Copyright (C) 1990-2013 by Gerhard Buergmann";
 
 int		maxx, maxy;
 int		mymaxx = 0, mymaxy = 0;
-char	*name = NULL;
+fs::path	name;
 char	sstring[MAXCMD] = "";	/* string for search */
 char	estring[MAXCMD] = "";	/* string for shell escape */
 char	string[MAXCMD];
-FILE	*curr_file = NULL, *help_file;
+FILE	*curr_file = nullptr, *help_file;
 int		AnzAdd;
 long	precount = -1;	/* number preceding command */
 
@@ -48,18 +56,18 @@ char	**files;		/* list of input files */
 int		numfiles;		/* number of input files */
 int		file_nr = 0;	/* number of current input file */
 
-int		arrnum = 0;
-char	numarr[64];		/* string for collecting number */
+std::string	numarr;		/* string for collecting number */
 char	addr_form[15];
 
-int		ascii_flag = 0;
-int		dup_print_flag = 0;
-int		c_flag = 0, d_flag = 0;
+bool		ascii_flag = false;
+bool		dup_print_flag = false;
+bool		c_flag = false, d_flag = false;
 int		exval = 0;
 int		init_search = 0;
 char	buffer1[MAXCMD], buffer2[MAXCMD];
 int		out_len;
-int		corr = 0, do_header = 0, to_print;
+int		corr = 0, to_print;
+bool		do_header = false;
 off_t	init_byte = 0;
 off_t	last_search = 0;
 off_t	screen_home, filesize;
@@ -74,7 +82,7 @@ static	int		smode;
 
 /* char	search_pat[BUFFER];	*/  /* / or ? command */
 char	bmore_search_pat[BUFFER];   /* / or ? command */
-char	*emptyclass = "Empty byte class '[]' or '[^]'";
+const char	*emptyclass = "Empty byte class '[]' or '[^]'";
 
 static const char* help =
 "Most commands optionally preceded by integer argument k.  Defaults in brackets.\n"
@@ -116,15 +124,13 @@ static void display_help();
 void
 usage()
 {
-	fprintf(stderr, "Usage: %s [-acdi] [-lines] [+linenum | +/pattern] name1 name2 ...\n", progname);
-	exit(1);
+	std::fprintf(stderr, "Usage: %s [-acdi] [-lines] [+linenum | +/pattern] name1 name2 ...\n", progname);
+	std::exit(1);
 }
 
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int		ch, ch1;
 	int		colon = 0, last_ch = 0;
@@ -136,42 +142,42 @@ main(argc, argv)
 	char	*poi;
 
 
-	setlocale(LC_ALL, "");
+	std::setlocale(LC_ALL, "");
 
-	poi = strrchr(argv[0], DELIM);
+	poi = std::strrchr(argv[0], DELIM);
  
-	if (poi) strncpy(progname, ++poi, 9);
-	else strncpy(progname, argv[0], 9);
-	strtok(progname, ".");
+	if (poi) std::strncpy(progname, ++poi, 9);
+	else std::strncpy(progname, argv[0], 9);
+	std::strtok(progname, ".");
 
 	while (n < argc) {
 		switch (argv[n][0]) {
 		case '-':
 			if (argv[n][1] >= '0' && argv[n][1] <= '9') {
-				sscanf(&argv[n][1], "%dx%d", &mymaxy, &mymaxx);
+				std::sscanf(&argv[n][1], "%dx%d", &mymaxy, &mymaxx);
 			} else if (argv[n][1] == 'n') {
-				if (argv[n+1] == NULL || argv[n+1][0] == '-') {
+				if (argv[n+1] == nullptr || argv[n+1][0] == '-') {
 					usage();
 				} else {
-					sscanf(&argv[++n][0], "%d", &mymaxy);
+					std::sscanf(&argv[++n][0], "%d", &mymaxy);
 				}
 			} else if (argv[n][1] == 'w') {
-				if (argv[n+1] == NULL || argv[n+1][0] == '-') {
+				if (argv[n+1] == nullptr || argv[n+1][0] == '-') {
 					usage();
 				} else {
-					sscanf(&argv[++n][0], "%d", &mymaxx);
+					std::sscanf(&argv[++n][0], "%d", &mymaxx);
 				}
 			} else {
 				i = 1;
 				while (argv[n][i] != '\0') {
 					switch (argv[n][i]) {
-					case 'a':	ascii_flag++;
+					case 'a':	ascii_flag = true;
 								break;
-					case 'c':	c_flag++;
+					case 'c':	c_flag = true;
 								break;
-					case 'd':	d_flag++;
+					case 'd':	d_flag = true;
 								break;
-					case 'i':	ignore_case++;
+					case 'i':	ignore_case = true;
 								break;
 					default:		
 								usage();
@@ -184,14 +190,14 @@ main(argc, argv)
 		case '+':			/* +cmd */
 			if (argv[n][1] == '/' || argv[n][1] == '\\') {
 				init_search = argv[n][1];
-				strcpy(sstring, &argv[n][2]);
+				std::strcpy(sstring, &argv[n][2]);
 			} else {
-				init_byte = strtoll(argv[n] + 1, NULL, 0);
+				init_byte = std::strtoll(argv[n] + 1, nullptr, 0);
 			}
 			n++;
 			break;
 		default:			/* must be a file name */
-			name = strdup(argv[n]);
+			name = argv[n];
 			files = &(argv[n]);
 			numfiles = argc - n;
 			n = argc;
@@ -228,7 +234,7 @@ main(argc, argv)
 	screen_home = bytepos;
 
 	AnzAdd = 10;
-	strcpy(addr_form,  "%08lX  ");
+	std::strcpy(addr_form,  "%08lX  ");
 
 	if (ascii_flag)
 		out_len = ((maxx - AnzAdd - 1) / 4) * 4;
@@ -249,21 +255,21 @@ main(argc, argv)
 			do_next(1);
 			open_file(name);
 		}
-		if (curr_file) fclose(curr_file);
+		if (curr_file) std::fclose(curr_file);
 		reset_tty();
-		exit(exval);
+		std::exit(exval);
 	}
 	if (!exval) {
 		if (printout(maxy)) {
 			do_next(1);
 		}
 	}
-	signal(SIGINT, sig);
-	signal(SIGQUIT, sig);
+	std::signal(SIGINT, sig);
+	std::signal(SIGQUIT, sig);
 	/* main loop */
 	do {
 		to_print = 0;
-		dup_print_flag = 0;
+		dup_print_flag = false;
 		if (prompt) {
 			if (prompt == 2) {
 				while (open_file(name)) {
@@ -271,16 +277,16 @@ main(argc, argv)
 				}
 			}
 			highlight();
-			printf("--More--");
+			std::printf("--More--");
 			if (prompt == 2) {
-				printf("(Next file: %s)", name);
+				std::printf("(Next file: %s)", name.c_str());
 			} else if (!no_intty && filesize) {
-				printf("(%d%%)", (int)((bytepos * 100) / filesize));
+				std::printf("(%d%%)", (int)((bytepos * 100) / filesize));
 			}
 
-			if (d_flag) printf("[Press space to continue, 'q' to quit]");
+			if (d_flag) std::printf("[Press space to continue, 'q' to quit]");
 			normal();
-			fflush(stdout);
+			std::fflush(stdout);
 		}
 		ch = vgetc();
 		/*
@@ -289,15 +295,16 @@ main(argc, argv)
 		}
 		*/
 		prompt = 1;
-		printf("\r");
+		std::printf("\r");
+		numarr.clear();
 		while (ch >= '0' && ch <= '9') {
-			numarr[arrnum++] = ch;
+			numarr.push_back(static_cast<char>(ch));
 			ch = vgetc();
 		}
-		numarr[arrnum] = '\0';
-		if (arrnum != 0) precount = strtol(numarr, (char **)NULL, 10);
+		if (!numarr.empty()) precount = std::strtol(numarr.c_str(), nullptr, 10);
 			else precount = -1;
-		lflag = arrnum = 0;
+		lflag = 0;
+		numarr.clear();
 
 		if (ch == '.') {
 			precount = last_pre;
@@ -312,67 +319,67 @@ main(argc, argv)
 
 		switch (ch) {
 		case ' ':	/*  Display next k lines of text [current screen size] */
-					dup_print_flag = 1;
+					dup_print_flag = true;
 					if (precount > 0) to_print = precount;
 						else to_print = maxy;
 					break;
 		case 'z':	/* Display next k lines of bytes [current screen size]* */
-					dup_print_flag = 1;
+					dup_print_flag = true;
 					if (precount > 0) z_line = precount;
 					to_print = z_line;
 					break;
 		case '\r':
 		case '\n':	/* Display next k lines of text [current screen size]* */
-					dup_print_flag = 1;
+					dup_print_flag = true;
 					if (precount > 0) r_line = precount;
 					to_print = r_line;
 					break;
 		case 'q':
 		case 'Q':
 					cleartoeol();
-					fclose(curr_file);
+					std::fclose(curr_file);
 					reset_tty();
-					exit(exval);
+					std::exit(exval);
 		case ':' :	
 					switch (colon) {
 					case 'f':
 						prompt = 0;
 						if (!no_intty)
-							printf("\"%s\" line %lu", name,
+							std::printf("\"%s\" line %lu", name.c_str(),
 								(unsigned long)(bytepos - out_len));
 						else
-							printf("[Not a file] line %lu",
+							std::printf("[Not a file] line %lu",
 								(unsigned long)(bytepos - out_len));
-						fflush(stdout);
+						std::fflush(stdout);
 						break;
 					case 'n':
 						if (precount < 1) precount = 1;
 						do_next(precount);
-						printf("\r");
+						std::printf("\r");
 						cleartoeol();
-						printf("\n...Skipping to file %s\r\n\r\n", name);
+						std::printf("\n...Skipping to file %s\r\n\r\n", name.c_str());
 						prompt = 2;
 						break;
 					case 'p':
 						if (precount < 1) precount = 1;
 						do_next(-precount);
-						printf("\r");
+						std::printf("\r");
 						cleartoeol();
-						printf("\n...Skipping back to file %s\r\n\r\n", name);
+						std::printf("\n...Skipping back to file %s\r\n\r\n", name.c_str());
 						prompt = 2;
 						break;
 					case 'q':
 						cleartoeol();
-						fclose(curr_file);
+						std::fclose(curr_file);
 						reset_tty();
-						exit(exval);
+						std::exit(exval);
 						break;
 					case '!':
 						if (!no_intty) {
 							cleartoeol();
 							if (rdline(colon, estring)) break;
 							doshell(estring);
-							printf("------------------------\r\n");
+							std::printf("------------------------\r\n");
 							break;
 						}
 					default:
@@ -384,7 +391,7 @@ main(argc, argv)
 				cleartoeol();
 				if (rdline(ch, estring)) break;
 				doshell(estring);
-				printf("------------------------\r\n");
+				std::printf("------------------------\r\n");
 				break;
 			}
 		case 'd':	/* Scroll k lines [current scroll size, initially 11]* */
@@ -408,11 +415,11 @@ main(argc, argv)
 						bmbeep();
 					} else {
 						if (precount < 1) precount = 1;
-						printf("...back %ld page", precount);
+						std::printf("...back %ld page", precount);
 						if (precount > 1) {
-							printf("s\r\n");
+							std::printf("s\r\n");
 						} else {
-							printf("\r\n");
+							std::printf("\r\n");
 						}
 						screen_home -= (maxy + 1) * out_len;
 						if (screen_home < 0) screen_home = 0;
@@ -429,13 +436,13 @@ main(argc, argv)
 					} else {
 						count = precount;
 					}
-					putchar('\r');
+					std::putchar('\r');
 					cleartoeol();
-					printf("\n...skipping %ld line", count);
+					std::printf("\n...skipping %ld line", count);
 					if (count > 1) {
-						printf("s\r\n\r\n");
+						std::printf("s\r\n\r\n");
 					} else {
-						printf("\r\n\r\n");
+						std::printf("\r\n\r\n");
 					}
 					screen_home += (count + maxy) * out_len;
 					fseeko(curr_file, screen_home, SEEK_SET);
@@ -467,17 +474,17 @@ main(argc, argv)
 						fseeko(curr_file, bytepos, SEEK_SET);
 						screen_home = bytepos;
 						to_print = maxy;
-						printf("\r");
+						std::printf("\r");
 						cleartoeol();
-						printf("\n\r\n***Back***\r\n\r\n");
+						std::printf("\n\r\n***Back***\r\n\r\n");
 					}
 					break;
 		case '=':
 					prompt = 0;
 					cleartoeol();
-					printf("%lX hex  %lu dec", (unsigned long)bytepos,
+					std::printf("%lX hex  %lu dec", (unsigned long)bytepos,
 						(unsigned long)bytepos);
-					fflush(stdout);
+					std::fflush(stdout);
 					break;
 		case '?':
 		case 'h':
@@ -487,17 +494,18 @@ main(argc, argv)
 		case 'v':
 					if (!no_intty) {
 						cleartoeol();
+						std::string cmd;
 						if (ch == 'v') {
-							sprintf(string, "bvi +%lu %s", 
-								(unsigned long)(screen_home + 
-								(maxy + 1) / 2 * out_len), name);
+							cmd = std::format("bvi +{} {}",
+								(unsigned long)(screen_home +
+								(maxy + 1) / 2 * out_len), name.string());
 						} else {
 							if (precount < 1) precount = bytepos - screen_home;
-							sprintf(string, "bvi -b %lu -s %lu %s",
-								(unsigned long)screen_home, 
-								(unsigned long)precount, name);
+							cmd = std::format("bvi -b {} -s {} {}",
+								(unsigned long)screen_home,
+								(unsigned long)precount, name.string());
 						}
-						doshell(string);
+						doshell(cmd.c_str());
 						to_print = maxy + 1;
 						break;
 					}
@@ -519,20 +527,18 @@ main(argc, argv)
 
 
 int
-rdline(ch, sstring)
-	int		ch;
-	char	*sstring;
+rdline(int ch, char *sstring)
 {
 	int		i = 0;
 	int		ch1 = 0;
 	char	bstring[MAXCMD];
 
 	if (ch == '!') {
-		strcpy(bstring, sstring);
+		std::strcpy(bstring, sstring);
 		sstring[0] = '\0';
 	}
-	putchar(ch);
-	fflush(stdout);
+	std::putchar(ch);
+	std::fflush(stdout);
 
 	while (i < MAXCMD) {
 		ch1 = vgetc();
@@ -541,7 +547,7 @@ rdline(ch, sstring)
 		} else if (ch1 == 8) {
 			if (i) {
 				sstring[--i] = '\0';
-				printf("\r%c%s", ch, sstring);
+				std::printf("\r%c%s", ch, sstring);
 				cleartoeol();
 			} else {
 				ch1 = ESC;
@@ -552,18 +558,18 @@ rdline(ch, sstring)
 				emsg("No previous command");
 				return 1;
 			}
-			putchar(ch1);
-			printf("\r%c%s", ch, bstring);
-			strcat(sstring, bstring);
-			i = strlen(sstring);
+			std::putchar(ch1);
+			std::printf("\r%c%s", ch, bstring);
+			std::strcat(sstring, bstring);
+			i = std::strlen(sstring);
 		} else {
-			putchar(ch1);
+			std::putchar(ch1);
 			sstring[i++] = ch1;
 		}
-		fflush(stdout);
+		std::fflush(stdout);
 	}
 	if (ch1 == ESC) {
-		putchar('\r');
+		std::putchar('\r');
 		cleartoeol();
 		return 1;
 	}
@@ -573,14 +579,13 @@ rdline(ch, sstring)
 
 
 void
-do_next(n)
-	int	n;
+do_next(int n)
 {
 	if (numfiles) {
 		if (n == 1 && file_nr == numfiles) {
-			if (curr_file) fclose(curr_file);
+			if (curr_file) std::fclose(curr_file);
 			reset_tty();
-			exit(exval);
+			std::exit(exval);
 		}
 		if ((file_nr + n) > numfiles)
 			file_nr = numfiles;
@@ -589,29 +594,27 @@ do_next(n)
 		else
 			file_nr += n;
 		prompt = 2;
-		free(name);
-		name = strdup(*(files + file_nr - 1));
+		name = *(files + file_nr - 1);
 	} else {
-		if (curr_file) fclose(curr_file);
+		if (curr_file) std::fclose(curr_file);
 		reset_tty();
-		exit(exval);
+		std::exit(exval);
 	}
 }
 
 
 int
-open_file(name)
-	char *name;
+open_file(const fs::path& name)
 {
-	struct	stat	buf;
-
-	if (stat(name, &buf) > -1) {
-		filesize = buf.st_size;
+	std::error_code ec;
+	const auto sz = fs::file_size(name, ec);
+	if (!ec) {
+		filesize = static_cast<off_t>(sz);
 	}
-	if (curr_file) fclose(curr_file);
-	if (numfiles > 1) do_header = 1;
-	if ((curr_file = fopen(name, "rb")) == NULL) {
-		perror(name);
+	if (curr_file) std::fclose(curr_file);
+	if (numfiles > 1) do_header = true;
+	if ((curr_file = std::fopen(name.c_str(), "rb")) == nullptr) {
+		std::perror(name.c_str());
 		exval = 1;
 		return 1;
 	}
@@ -621,18 +624,16 @@ open_file(name)
 
 
 void
-putline(buf, num)
-	char	*buf;
-	int		num;
+putline(const char *buf, int num)
 {
 	int			print_pos;
 	unsigned	char	ch;
 
-	printf(addr_form, (unsigned long)bytepos);
+	std::printf(addr_form, (unsigned long)bytepos);
 	for (print_pos = 0; print_pos < num; print_pos++) {
 		ch = buf[print_pos];
 		if (!ascii_flag) {
-		    printf("%02X ", ch);
+		    std::printf("%02X ", ch);
 		}
 		++bytepos;
 		if ((ch > 31) && (ch < 127))
@@ -642,37 +643,36 @@ putline(buf, num)
 	}
 	for (; print_pos < out_len; print_pos++) {
 		if (!ascii_flag) {
-		    printf("   ");
+		    std::printf("   ");
 		}
 		++bytepos;
 		*(string + print_pos) = ' ';
 	}
 	*(string + num) = '\0';
-	if (no_tty) printf("%s\n", string);
-	else printf("%s\r\n", string);
+	if (no_tty) std::printf("%s\n", string);
+	else std::printf("%s\r\n", string);
 }
 
 
 int
-printout(lns)
-	int lns;
+printout(int lns)
 {
 	int			c, num;
 	int			doub = 0;
-	static		int		flag;
+	static		bool		flag = false;
 	
 	if (c_flag) {
 		clearscreen();
 	}
 	if (do_header) {
 		if (no_tty) {
-			printf("::::::::::::::\n%s\n::::::::::::::\n", name);
+			std::printf("::::::::::::::\n%s\n::::::::::::::\n", name.c_str());
 		} else {
-			printf("\r");
+			std::printf("\r");
 			cleartoeol();
-			printf("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name);
+			std::printf("::::::::::::::\r\n%s\r\n::::::::::::::\r\n", name.c_str());
 		}
-		do_header = 0;
+		do_header = false;
 		corr = 2;
 	}
 	if (corr && (lns > maxy - 2)) lns -= corr;
@@ -683,20 +683,20 @@ printout(lns)
 			buffer1[num] = c;
 		}
 		if (!num) return 1;
-		if (memcmp(buffer1, buffer2, num) || !bytepos || !dup_print_flag) {
-			memcpy(buffer2, buffer1, num);
+		if (std::memcmp(buffer1, buffer2, num) || !bytepos || !dup_print_flag) {
+			std::memcpy(buffer2, buffer1, num);
 			putline(buffer2, num);
-			if (!no_tty) flag = TRUE;
+			if (!no_tty) flag = true;
 			lns--;
 		} else {
 			if (flag) {
 				cleartoeol();
-				printf("*\r\n");
+				std::printf("*\r\n");
 				lns--;
 			} else {
 				doub++;
 			}
-			flag = FALSE;
+			flag = false;
 			bytepos += num;
 		}
 		if (lns == 0) {
@@ -704,7 +704,7 @@ printout(lns)
 			if (screen_home < 0) screen_home = 0;
 			return 0;
 		}
-		dup_print_flag = 1;
+		dup_print_flag = true;
 	} while(num);
 	return 1;
 }
@@ -713,19 +713,17 @@ printout(lns)
 int
 nextchar()
 {
-	if (cnt == 0) return fgetc(curr_file);
+	if (cnt == 0) return std::fgetc(curr_file);
 	cnt--;
 	return cmdbuf[icnt++] & 0xff;
 }
 
 
 void
-pushback(n, where)
-	int	n;
-	char	*where;
+pushback(int n, const char *where)
 {
-	if (cnt) memmove(cmdbuf + n, cmdbuf, n);
-	memcpy(cmdbuf, where, n);
+	if (cnt) std::memmove(cmdbuf + n, cmdbuf, n);
+	std::memcpy(cmdbuf, where, n);
 	icnt = 0;
 	cnt += n;
 }
@@ -739,8 +737,7 @@ pushback(n, where)
  *  1   found
  */
 int
-bmregexec(scan)
-	char	*scan;
+bmregexec(const char *scan)
 {
 	char	*act;
 	int		count, test;
@@ -756,7 +753,7 @@ bmregexec(scan)
 			pushback(l, act_pat);
 			return 0;
 		}
-		if (ignore_case && smode == ASCII)	test = toupper(test);
+		if (ignore_case && smode == ASCII)	test = std::toupper(test);
 		switch (*scan++) {
 		case ONE:	/* exactly one character */
 				count = *scan++;
@@ -787,7 +784,7 @@ bmregexec(scan)
 							return 0;
 						}
 						if (ignore_case && smode == ASCII)
-								test = toupper(test);
+								test = std::toupper(test);
 					}
 					pushback(1, --act);
 					l--;
@@ -816,7 +813,7 @@ bmregexec(scan)
 									return 0;
 								}
 								if (ignore_case && smode == ASCII)
-										test = toupper(test);
+										test = std::toupper(test);
 							}
 						} while(1);
 					} else {
@@ -828,7 +825,7 @@ bmregexec(scan)
 								return 0;
 							}
 							if (ignore_case && smode == ASCII)
-									test = toupper(test);
+									test = std::toupper(test);
 						}
 						scan += count;
 						pushback(1, --act);
@@ -858,23 +855,19 @@ bmregexec(scan)
 
 
 int
-sbracket(start, scan, count)
-	int		start;
-	char	*scan;
-	int		count;
+sbracket(int start, const char *scan, int count)
 {
 	if (*scan++ == '^') {
-		if (!memchr(scan, start, --count)) return 0;
+		if (!std::memchr(scan, start, --count)) return 0;
 	} else {
-		if (memchr(scan, start, --count)) return 0;
+		if (std::memchr(scan, start, --count)) return 0;
 	}
 	return 1;
 }
 
 
 void
-bmsearch(ch)
-	int	ch;
+bmsearch(int ch)
 {
 	int	i;
 
@@ -901,7 +894,7 @@ bmsearch(ch)
 			to_print = maxy;
 		} else {		/* i == -1 -> EOF */
 			if (no_intty) {
-				printf("\r\nPattern not found\r\n");
+				std::printf("\r\nPattern not found\r\n");
 				do_next(1);
 			} else {
 /*
@@ -920,28 +913,27 @@ emsg(string);
 		}
 	}
 	if (prompt) {
-		printf("\r\n...skipping\r\n");
+		std::printf("\r\n...skipping\r\n");
 	}
 }
 
 
 void
-emsg(s)
-	char	*s;
+emsg(std::string_view s)
 {
-	putchar('\r');
+	std::putchar('\r');
 	cleartoeol();
 	highlight();
-	printf("%s", s);
+	std::printf("%.*s", static_cast<int>(s.size()), s.data());
 	normal();
-	fflush(stdout);
+	std::fflush(stdout);
 	prompt = 0;
 }
 
 
 void
 bmbeep() {
-	putchar(7);
+	std::putchar(7);
 }
 
 static void
@@ -951,7 +943,7 @@ display_help()
 
     for (ptr = help; *ptr; ++ptr)
     {
-        putchar(*ptr);
+        std::putchar(*ptr);
     }
     to_print = 0;
 }

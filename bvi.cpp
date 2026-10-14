@@ -32,14 +32,20 @@
  */
 
 #include <sys/types.h>
-#include <locale.h>
+#include <clocale>
 
-#include "bvi.h"
-#include "set.h"
+#include "bvi.hpp"
+#include "set.hpp"
+
+#include <filesystem>
+#include <format>
+#include <string>
+
+namespace fs = std::filesystem;
 
 
 
-char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
+const char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
 
 jmp_buf	env;        /* context for `longjmp' function   */
 
@@ -47,15 +53,14 @@ int		loc;
 int		maxx, maxy, x, xx, y;
 int		screen, status, statsize;
 off_t	size;
-PTR		mem = NULL;
+PTR		mem = nullptr;
 PTR		curpos;
 PTR		maxpos;
 PTR		pagepos;
 PTR		spos;
-char	*name = NULL;
-char	*shell;
-char	string[MAXCMD+1];
-char	cmdstr[MAXCMD+1] = "";
+fs::path	name;
+const char	*shell;
+std::string	cmdstr;
 FILE	*Ausgabe_Datei;
 int		edits = 0;
 int		AnzAdd, Anzahl, Anzahl3;
@@ -74,9 +79,8 @@ char	**files;		/* list of input files */
 int		numfiles;		/* number of input files */
 int		curfile;		/* number of the current file */
 
-int		arrnum = 0;
-char	numarr[MAXCMD+1];		/* string for collecting number */
-char	rep_buf[BUFFER];
+std::string	numarr;		/* string for collecting number */
+std::string	rep_buf;
 
 PTR		current;
 PTR		last_motion;
@@ -84,18 +88,18 @@ PTR		current_start;
 PTR		undo_start;
 off_t	undo_count;
 off_t	yanked = 0L;
-char	*yank_buf = NULL;
-char	*undo_buf = NULL;
+char	*yank_buf = nullptr;
+char	*undo_buf = nullptr;
 PTR		markbuf[26];
 
 char	addr_form[15];
 
-char	*nobytes = "No bytes@in the buffer";
+const char	*nobytes = "No bytes@in the buffer";
 
 static	char	progname[8];
-static	char	line[MAXCMD+1];
+static	std::string	line;
 static	int		mark;
-static	int		wrstat = 1;
+static	bool		wrstat = true;
 
 static void set_window_size();
 
@@ -104,18 +108,16 @@ void
 usage()
 {
 
-	fprintf(stderr, "Usage: %s [-R] [-c cmd | +cmd] [-f script]\n\
+	std::fprintf(stderr, "Usage: %s [-R] [-c cmd | +cmd] [-f script]\n\
 	   [-s skip] [-e end] [-n length] file ...\n\
 	   file offset/size: 10k, 20m, 1g, 0x1000 hex, 0200 octal\n", progname);
 
-	exit(1);
+	std::exit(1);
 }
 
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int		ch;
 	int		lflag;
@@ -127,16 +129,16 @@ main(argc, argv)
 
 
 
-	setlocale(LC_ALL, "");
-	poi = strrchr(argv[0], DELIM);
+	std::setlocale(LC_ALL, "");
+	poi = std::strrchr(argv[0], DELIM);
 
-	if (poi) strncpy(progname, ++poi, 7);
-		else strncpy(progname, argv[0], 7);
-	strtok(progname, ".");
+	if (poi) std::strncpy(progname, ++poi, 7);
+		else std::strncpy(progname, argv[0], 7);
+	std::strtok(progname, ".");
 
 	if (!strcasecmp(progname, "bview")) {
-		params[P_RO].flags |= P_CHANGED;
-		P(P_RO) = TRUE;
+		params[P_RO].changed = true;
+		B(P_RO) = true;
 	} else if (!strcasecmp(progname, "bvedit")) {
 		/* This should be the beginners version */
 	}
@@ -145,37 +147,37 @@ main(argc, argv)
 		switch (argv[n][0]) {
 		case '-':
 			if (argv[n][1] == 'R') {
-				params[P_RO].flags |= P_CHANGED;
-				P(P_RO) = TRUE;
+				params[P_RO].changed = true;
+				B(P_RO) = true;
 			} else if (argv[n][1] == 'c') {
-				if (argv[n + 1] == NULL) {
+				if (argv[n + 1] == nullptr) {
 					usage();
 				} else {
-					strcpy(cmdstr, argv[++n]);
+					cmdstr = argv[++n];
 				}
 			} else if (argv[n][1] == 'f') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					script = ++n;
 				}
 
 			} else if (argv[n][1] == 's') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					block_begin = calc_size(argv[++n]);
 					block_flag |= BLOCK_BEGIN;
 				}
 			} else if (argv[n][1] == 'e') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					block_end = calc_size(argv[++n]);
 					block_flag |= BLOCK_END;
 				}
 			} else if (argv[n][1] == 'n') {
-				if (argv[n + 1] == NULL || argv[n + 1][0] == '-') {
+				if (argv[n + 1] == nullptr || argv[n + 1][0] == '-') {
 					usage();
 				} else {
 					block_size = calc_size(argv[++n]);
@@ -185,22 +187,22 @@ main(argc, argv)
 				if (argv[n][2] == '\0') {
 					usage();
 				} else {
-					params[P_LI].flags |= P_CHANGED;
-					P(P_LI) = atoi(argv[n] + 2);
+					params[P_LI].changed = true;
+					P(P_LI) = std::atoi(argv[n] + 2);
 				}
 			} else usage();
 			n++;
 			break;
 		case '+':			/* +cmd */
 			if (argv[n][1] == '\0') {
-				strcpy(cmdstr, "$");
+				cmdstr = "$";
 			} else {
-				strcpy(cmdstr, &argv[n][1]);
+				cmdstr = &argv[n][1];
 			}
 			n++;
 			break;
 		default:			/* must be a file name */
-			name = strdup(argv[n]);
+			name = argv[n];
 			files = &(argv[n]);
 			numfiles = argc - n;
 			n = argc;
@@ -235,16 +237,16 @@ main(argc, argv)
 		break;
 	case BLOCK_BEGIN|BLOCK_END|BLOCK_LEN:
 		if (block_end - block_begin != block_size + 1) {
-			fprintf(stderr, "Ambigous block data\n");
-			exit(1);
+			std::fprintf(stderr, "Ambigous block data\n");
+			std::exit(1);
 		}
 		break;
 	}
 	if (block_flag && !numfiles) {
-		fprintf(stderr, "Cannot read a range of a nonexisting file\n");
-		exit(1);
+		std::fprintf(stderr, "Cannot read a range of a nonexisting file\n");
+		std::exit(1);
 	}
-	if (numfiles > 1) fprintf(stderr, "%d files to edit\n", numfiles);
+	if (numfiles > 1) std::fprintf(stderr, "%d files to edit\n", numfiles);
 	curfile = 0;
 
 	/****** Initialisation of curses ******/
@@ -253,42 +255,43 @@ main(argc, argv)
 
     set_window_size();
 
-	keypad(stdscr, TRUE);
-	scrollok(stdscr, TRUE);
+	keypad(stdscr, true);
+	scrollok(stdscr, true);
 	nonl();
 	cbreak();
 	noecho();
 
-	signal(SIGINT, SIG_IGN);
+	std::signal(SIGINT, SIG_IGN);
 	filesize = load(name);
 
 	bvi_init(argv[0]);
-	params[P_TT].svalue = terminal;
-	if (block_flag && (P(P_MM) == TRUE)) {
-		P(P_MM) = FALSE;
-		params[P_TT].flags |= P_CHANGED;
+	S(P_TT) = terminal;
+	if (block_flag && B(P_MM)) {
+		B(P_MM) = false;
+		params[P_TT].changed = true;
 	}
 	if (script > -1)
 		read_rc(argv[script]);
-	if (*cmdstr != '\0')
-		docmdline(cmdstr);
+	if (!cmdstr.empty())
+		docmdline(cmdstr.c_str());
 	
 	/* main loop */
 	do {
 		setjmp(env);
 		current = (PTR)(pagepos + y * Anzahl + xpos());
 		if (wrstat) statpos();
-		wrstat = 1;
+		wrstat = true;
 		setcur();
 		ch = vgetc();
+		numarr.clear();
 		while (ch >= '0' && ch <= '9') {
-			if (arrnum < MAXCMD) numarr[arrnum++] = ch;
+			if (numarr.size() < MAXCMD) numarr.push_back(static_cast<char>(ch));
 			ch = vgetc();
 		}
-		numarr[arrnum] = '\0';
-		if (arrnum != 0) precount = strtoll(numarr, (char **)NULL, 10);
+		if (!numarr.empty()) precount = std::strtoll(numarr.c_str(), nullptr, 10);
 			else precount = -1;
-		lflag = arrnum = 0;
+		lflag = 0;
+		numarr.clear();
 
 		switch (ch) {
 		case '^':	x = AnzAdd;
@@ -305,7 +308,7 @@ main(argc, argv)
 		case '\t':  toggle();
 					break;
 		case '~':	if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ld~", precount);
+					rep_buf = std::format("{}~", precount);
 					do_tilde((off_t)precount);
 					lflag++;
 					break;
@@ -392,8 +395,8 @@ main(argc, argv)
 					addch(ch);
 					refresh();
 					getcmdstr(cmdstr, 1);
-					if (strlen(cmdstr))
-						docmdline(cmdstr);
+					if (!cmdstr.empty())
+						docmdline(cmdstr.c_str());
 					break;
 		case BVICTRL('B'):
 		case KEY_PPAGE: 	/**** Previous Page ****/
@@ -427,7 +430,7 @@ main(argc, argv)
 					break;
 		case BVICTRL('G'):
 					fileinfo(name);
-					wrstat = 0;
+					wrstat = false;
 					break;
 		case BVICTRL('L'):   	/*** REDRAW SCREEN ***/
 					new_screen();
@@ -439,7 +442,7 @@ main(argc, argv)
 		case 'A':   smsg("APPEND MODE");
 					current = (PTR)(mem + filesize - 1L);
 					setpage(current++);
-					cur_forw(0);
+					cur_forw(false);
 					setcur();
 					undosize = filesize;
 					undo_count = edit(ch);
@@ -449,14 +452,14 @@ main(argc, argv)
 					break;
 		case 'e':	setpage(end_word(current));
 					break;
-		case ',':	do_ft(-1, 0);
+		case ',':	do_ft(-1, false);
 					break;
-		case ';':	do_ft(0, 0);
+		case ';':	do_ft(0, false);
 					break;
 		case 'F':	
 		case 'f':	
 		case 't':	
-		case 'T':	do_ft(ch, 0);
+		case 'T':	do_ft(ch, false);
 					break;
 		case 'G':   last_motion = current;
 					if (precount > -1)	{
@@ -476,13 +479,13 @@ main(argc, argv)
 					refresh();
 					getcmdstr(cmdstr, 18);
 					clearstr();
-					if (cmdstr[0] == '^') {
+					if (cmdstr.starts_with('^')) {
 						inaddr = P(P_OF);
-					} else if (cmdstr[0] == '$') {
+					} else if (cmdstr.starts_with('$')) {
 						inaddr = filesize + P(P_OF) - 1L;
 					} else {
 						off_t ltmp;
-						sscanf(cmdstr, "%llx", (long long unsigned *)&ltmp);
+						std::sscanf(cmdstr.c_str(), "%llx", (long long unsigned *)&ltmp);
 						inaddr = ltmp;
 					}
 					if (inaddr < P(P_OF)) break;
@@ -491,8 +494,7 @@ main(argc, argv)
 						setpage(mem + inaddr);
 					} else {
 						if (filesize == 0L) break;
-						sprintf(string, "Max. address of current file : %06llX", (long long unsigned)(filesize - 1L + P(P_OF)));
-						emsg(string);
+						emsg(std::format("Max. address of current file : {:06X}", (unsigned long long)(filesize - 1L + P(P_OF))));
 					}
 					break;
 		case '?':
@@ -503,20 +505,20 @@ main(argc, argv)
 					refresh();
 					if (getcmdstr(line, 1)) break;
 					last_motion = current;
-					hl_spat = P(P_HL);
-					searching(ch, line, current, maxpos - 1, P(P_WS));
+					hl_spat = B(P_HL);
+					searching(ch, line.c_str(), current, maxpos - 1, B(P_WS));
 					if (hl_spat) {
 						repaint();
 					}
 					break;
 		case ESC:		/* un-highlight */
-					hl_spat = FALSE;
+					hl_spat = false;
 					repaint();
 					break;
 		case 'n': 		/**** Search Next ****/
 		case 'N':   last_motion = current;
-					hl_spat = P(P_HL);
-					searching(ch, "", current, maxpos - 1, P(P_WS));
+					hl_spat = B(P_HL);
+					searching(ch, "", current, maxpos - 1, B(P_WS));
 					if (hl_spat) {
 						repaint();
 					}
@@ -534,26 +536,26 @@ main(argc, argv)
 					} else {
 						if (mark < 'a' || mark > 'z') {
 							beep(); break;
-						} else if (markbuf[mark - 'a'] == NULL) {
+						} else if (markbuf[mark - 'a'] == nullptr) {
 								beep(); break;
 						}
 						setpage(markbuf[mark - 'a']);
 					}
 					break;
 		case 'D':	if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ldD", precount);
+					rep_buf = std::format("{}D", precount);
 					trunc_cur();
 					break;
 		case 'o':	/* overwrite: this is an overwriting put */
 					if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ldo", precount);
+					rep_buf = std::format("{}o", precount);
 					do_over(current, yanked, yank_buf);
 					break;
 		case 'P':
 					if (precount < 1) precount = 1;
 					if ((undo_count = alloc_buf(yanked, &undo_buf)) == 0L)
 						break;
-					sprintf(rep_buf, "%ldP", precount);
+					rep_buf = std::format("{}P", precount);
 					if (do_append((off_t)yanked, yank_buf)) break;
 					/* we save it not for undo but for the dot command
 					memcpy(undo_buf, yank_buf, yanked);
@@ -563,7 +565,7 @@ main(argc, argv)
 		case 'r':
 		case 'R':   if (filesize == 0L) break;
 					if (precount < 1) precount = 1;
-					sprintf(rep_buf, "%ld%c", precount, ch);
+					rep_buf = std::format("{}{}", precount, static_cast<char>(ch));
 					undo_count = edit(ch);
 					lflag++;
 					break;
@@ -576,25 +578,23 @@ main(argc, argv)
 		case 'y':	count = range(ch);
 					if (count > 0) {
 /*
-  sprintf(string, "$%ld$", (long)yanked);
-  msg(string);
+  msg(std::format("${}$", yanked));
   vgetc();
 */
 						if ((yanked = alloc_buf((off_t)count, &yank_buf)) == 0L) {
 							break;
 						}
-						memcpy(yank_buf, current, yanked);
+						std::memcpy(yank_buf, current, yanked);
 					} else if (count < 0) {
 						if ((yanked = alloc_buf(-(off_t)count, &yank_buf)) == 0L) {
 							break;
 						}
-						memcpy(yank_buf, current, yanked);
+						std::memcpy(yank_buf, current, yanked);
 					} else {
 						break;
 					}
 /*
-					sprintf(string, "%ld bytes yanked", labs(count));
-					msg(string);
+					msg(std::format("{} bytes yanked", labs(count)));
 */
 					break;
 		case 'z':	do_z(vgetc());
@@ -603,7 +603,7 @@ main(argc, argv)
 						else beep();
 					break;
 		case '.':
-					if (!strlen(rep_buf)) {
+					if (rep_buf.empty()) {
 						beep();
 					} else {
 						stuffin(rep_buf);
@@ -619,11 +619,11 @@ main(argc, argv)
 #endif
 
 		default :
-			if P(P_MM) {
+			if B(P_MM) {
 				if (precount < 1) precount = 1;
 				switch (ch) {
 				case 'I':
-					sprintf(rep_buf, "%ldI", precount);
+					rep_buf = std::format("{}I", precount);
 					current = mem;
 					setpage(mem);
 					repaint();
@@ -632,22 +632,22 @@ main(argc, argv)
 					break;
 /* undo does not work correctly !!! */
 				case 's':
-					sprintf(rep_buf, "%lds", precount);
+					rep_buf = std::format("{}s", precount);
 					if (do_delete((off_t)precount, current)) break;
 					precount = 1;
 					undo_count = edit('i');
 					lflag++;
 					break;
 				case 'a':
-					if (cur_forw(1)) break;
+					if (cur_forw(true)) break;
 					current++;
 				case 'i':
-					sprintf(rep_buf, "%ld%c", precount, ch);
+					rep_buf = std::format("{}{}", precount, static_cast<char>(ch));
 					undo_count = edit(ch);
 					lflag++;
 					break;
 				case 'p':
-					sprintf(rep_buf, "%ldp", precount);
+					rep_buf = std::format("{}p", precount);
 					do_put(current, yanked, yank_buf);
 					break;
 				case 'c':
@@ -664,11 +664,11 @@ main(argc, argv)
 					}
 					break;
 				case 'x':
-					sprintf(rep_buf, "%ldx", precount);
+					rep_buf = std::format("{}x", precount);
 					do_delete((off_t)precount, current);
 					break;
 				case 'X':
-					sprintf(rep_buf, "%ldX", precount);
+					rep_buf = std::format("{}X", precount);
 					do_back((off_t)precount, current);
 					break;
 				default:
@@ -680,7 +680,7 @@ main(argc, argv)
 				case 'x':
 					if (precount < 1) precount = 1;
 					if ((off_t)precount + current == maxpos) {
-						sprintf(rep_buf, "%ldx", precount);
+						rep_buf = std::format("{}x", precount);
 						do_delete((off_t)precount, current);
 					} else {
 						movebyte();
@@ -706,22 +706,21 @@ main(argc, argv)
 
 
 off_t
-calc_size(arg)
-	char	*arg;
+calc_size(const char *arg)
 {
 	off_t	val;
 	extern int errno;
 	char	*poi;
 
 	errno = 0;
-	val = strtoll(arg, &poi, 0);
+	val = std::strtoll(arg, &poi, 0);
 	if (val < 0) {
-		fprintf(stderr, "negative begin/size/end not allowed\n");
+		std::fprintf(stderr, "negative begin/size/end not allowed\n");
 		usage();
 	}
 	if (poi == arg || errno != 0) {
 		/* cygwin gdb displays errno incorrectly as 0 */
-		fprintf(stderr, "invalid begin/size/end (hex nr 0x#, octal 0#)\n");
+		std::fprintf(stderr, "invalid begin/size/end (hex nr 0x#, octal 0#)\n");
 		usage();
 	}
 	switch (*poi) {
@@ -758,14 +757,12 @@ trunc_cur()
 
 
 int
-do_append(count, buf)
-	off_t	count;
-	char	*buf;
+do_append(off_t count, const char *buf)
 {
 	if (filesize + count > memsize) {
 		if (enlarge(count + 100L)) return 1;
 	}
-	memcpy(mem + filesize, buf, count);
+	std::memcpy(mem + filesize, buf, count);
 	undo_start = mem + filesize - 1L;
 	setpage(undo_start + count);
 	edits = U_APPEND;
@@ -777,8 +774,7 @@ do_append(count, buf)
 
 
 void
-do_tilde(count)
-	off_t	count;
+do_tilde(off_t count)
 {
 	if (filesize == 0L) return;
 	undo_start = current;
@@ -788,13 +784,13 @@ do_tilde(count)
 	}
 	if ((undo_count = alloc_buf(count, &undo_buf)) == 0L)
 		return;
-	memcpy(undo_buf, current, undo_count);
+	std::memcpy(undo_buf, current, undo_count);
 	while (count--) {
-		if (isupper((int)(*current))) *current = tolower((int)(*current));
-			else if (islower((int)(*current)))
-				*current = toupper((int)(*current));
+		if (std::isupper((int)(*current))) *current = std::tolower((int)(*current));
+			else if (std::islower((int)(*current)))
+				*current = std::toupper((int)(*current));
 		current++;
-		cur_forw(0);
+		cur_forw(false);
 	}
 	edits = U_TILDE;
 	setcur();
@@ -842,8 +838,8 @@ do_undo()
 		case U_INSERT:
 			filesize -= undo_count;
 			maxpos -= undo_count;
-			memcpy(undo_buf, undo_start, undo_count);
-			memmove(undo_start, undo_start + undo_count,
+			std::memcpy(undo_buf, undo_start, undo_count);
+			std::memmove(undo_start, undo_start + undo_count,
 				maxpos - undo_start);
 			edits = U_DELETE;
 			break;
@@ -851,9 +847,9 @@ do_undo()
 		case U_DELETE:
 			filesize += undo_count;
 			maxpos += undo_count;
-			memmove(undo_start + undo_count, undo_start,
+			std::memmove(undo_start + undo_count, undo_start,
 				maxpos - undo_start);
-			memcpy(undo_start, undo_buf, undo_count);
+			std::memcpy(undo_start, undo_buf, undo_count);
 			edits = U_INSERT;
 			break;
 		}
@@ -864,10 +860,7 @@ do_undo()
 
 
 void
-do_over(loc, n, buf)
-	PTR		loc;
-	off_t	n;
-	PTR		buf;
+do_over(PTR loc, off_t n, const char *buf)
 {
 	if (n < 1L) {
 		emsg(nobytes);
@@ -880,8 +873,8 @@ do_over(loc, n, buf)
 	if ((undo_count = alloc_buf(n, &undo_buf)) == 0L)
 		return;
 	undo_start = loc;
-	memcpy(undo_buf, loc, n);
-	memcpy(loc, buf, n);
+	std::memcpy(undo_buf, loc, n);
+	std::memcpy(loc, buf, n);
 	edits = U_EDIT;
 	setpage(loc + n - 1);
 	repaint();
@@ -889,10 +882,7 @@ do_over(loc, n, buf)
 
 
 void
-do_put(loc, n, buf)
-	PTR		loc;
-	off_t	n;
-	PTR		buf;
+do_put(PTR loc, off_t n, const char *buf)
 {
 	if (n < 1L) {
 		emsg(nobytes);
@@ -911,8 +901,8 @@ do_put(loc, n, buf)
 	edits = U_INSERT;
 	filesize += n;
 	maxpos += n;
-	memmove(undo_start + n, undo_start, maxpos - loc);
-	memcpy(undo_start, buf, n);
+	std::memmove(undo_start + n, undo_start, maxpos - loc);
+	std::memcpy(undo_start, buf, n);
 	setpage(loc + n);
 	repaint();
 }
@@ -920,43 +910,40 @@ do_put(loc, n, buf)
 
 /* argument sig not used, because only SIGINT will be catched */
 void
-jmpproc(sig)
-	int	sig;
+jmpproc(int sig)
 {
-	if (P(P_EB)) beep();
+	if (B(P_EB)) beep();
 	repaint();
 	clearstr();
-    signal(SIGINT, SIG_IGN);
-    longjmp(env, 0);
+    std::signal(SIGINT, SIG_IGN);
+    std::longjmp(env, 0);
 }
 
 
 off_t
-range(ch)
-	int		ch;
+range(int ch)
 {
 	int		ch1;
 	long	count;
 
 	ch1 = vgetc();
+	numarr.clear();
 	while (ch1 >= '0' && ch1 <= '9') {
-		numarr[arrnum++] = ch1;
+		numarr.push_back(static_cast<char>(ch1));
 		ch1 = vgetc();
 	}
-	numarr[arrnum] = '\0';
-	if (arrnum != 0) count = strtol(numarr, (char **)NULL, 10);
+	if (!numarr.empty()) count = std::strtol(numarr.c_str(), nullptr, 10);
 		else count = 1;
-	arrnum = 0;
-	sprintf(rep_buf, "%ld%c%s%c", precount, ch, numarr, ch1);
+	rep_buf = std::format("{}{}{}{}", precount, static_cast<char>(ch), numarr, static_cast<char>(ch1));
 	switch (ch1) {
 	case '/':	/**** Search String ****/
 	case '\\':
-		strcat(rep_buf, "\n");
+		rep_buf += '\n';
 		clearstr();
 		addch(ch1);
 		refresh();
 		if (getcmdstr(line, 1)) break;
-		end_addr = searching(ch1, line, current, maxpos - 1, FALSE);
+		end_addr = searching(ch1, line.c_str(), current, maxpos - 1, false);
 		if (!end_addr) {
 			beep();
 			return 0;
@@ -964,12 +951,12 @@ range(ch)
 		return(end_addr - current);
 	case '?':
 	case '#':
-		strcat(rep_buf, "\n");
+		rep_buf += '\n';
 		clearstr();
 		addch(ch1);
 		refresh();
 		if (getcmdstr(line, 1)) break;
-		start_addr = searching(ch1, line, current, maxpos - 1, FALSE);
+		start_addr = searching(ch1, line.c_str(), current, maxpos - 1, false);
 		if (!start_addr) {
 			beep();
 			return 0;
@@ -978,7 +965,7 @@ range(ch)
 	case 'f':
 	case 't':
 		precount = count;
-		end_addr = do_ft(ch1, 1);
+		end_addr = do_ft(ch1, true);
 		if (!end_addr) {
 			beep();
 			return 0;
@@ -987,7 +974,7 @@ range(ch)
 	case 'F':
 	case 'T':
 		precount = count;
-		start_addr = do_ft(ch1, 1);
+		start_addr = do_ft(ch1, true);
 		if (!start_addr) {
 			beep();
 			return 0;
@@ -1021,7 +1008,7 @@ range(ch)
 			return 0;
 		}
 		end_addr = markbuf[mark - 'a'];
-		if (end_addr == NULL) {
+		if (end_addr == nullptr) {
 	        beep();
 			return 0;
 	    }
@@ -1039,7 +1026,7 @@ static void
 set_window_size()
 {
     maxy = LINES;
-    if ((params[P_LI].flags & P_CHANGED))
+    if (params[P_LI].changed)
     {
         maxy = P(P_LI);
     }
@@ -1054,7 +1041,7 @@ set_window_size()
         /*  default is 8 + 2 blanks  */
         /* if block_begin has 8 hex digits or more */
         /* reserve 1 hex digit more than required  */
-        AnzAdd = snprintf(
+        AnzAdd = std::snprintf(
             tmp,
             sizeof(tmp),
             "%llX",
@@ -1068,8 +1055,8 @@ set_window_size()
         {
             AnzAdd = sizeof(block_begin) * 2;
         }
-        snprintf(addr_form, sizeof(addr_form), "%%0%dllX  ", AnzAdd);
-        AnzAdd = snprintf(tmp, sizeof(tmp), addr_form, block_begin);
+        std::snprintf(addr_form, sizeof(addr_form), "%%0%dllX  ", AnzAdd);
+        AnzAdd = std::snprintf(tmp, sizeof(tmp), addr_form, block_begin);
     }
 
 	Anzahl = ((COLS - AnzAdd - 1) / 16) * 4;
