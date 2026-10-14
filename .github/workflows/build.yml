@@ -1,0 +1,59 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [g++, clang++]
+    name: build-ubuntu (${{ matrix.cxx }})
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
+        with:
+          packages: cmake g++ clang libncurses-dev
+          version: 1.0
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.deps
+          key: fetchcontent-${{ runner.os }}-${{ matrix.cxx }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ runner.os }}-${{ matrix.cxx }}-
+      - name: Build
+        uses: threeal/cmake-action@v2.1.0
+        with:
+          cxx-compiler: ${{ matrix.cxx }}
+          options: >
+            FETCHCONTENT_BASE_DIR=${{ github.workspace }}/.deps
+            FETCHCONTENT_UPDATES_DISCONNECTED=ON
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install dependencies
+        run: |
+          brew install ncurses
+          # Homebrew ncurses is keg-only; expose it to CMake's FindCurses.
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix ncurses)" >> "$GITHUB_ENV"
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.deps
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ runner.os }}-
+      - name: Build
+        uses: threeal/cmake-action@v2.1.0
+        with:
+          options: >
+            FETCHCONTENT_BASE_DIR=${{ github.workspace }}/.deps
+            FETCHCONTENT_UPDATES_DISCONNECTED=ON
+
