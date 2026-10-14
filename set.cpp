@@ -38,26 +38,24 @@ static	FILE	*ffp;
 static	char	fbuf[MAXCMD+1];
 static	char	buf[MAXCMD+1];
 
-struct	param	params[] = {
-	{ "autowrite",	"aw",		FALSE,	"",	P_BOOL },
-	{ "columns",	"cm",		16,		"",	P_NUM },
-	{ "errorbells",	"eb",		FALSE,	"",	P_BOOL },
-	{ "ignorecase",	"ic",		FALSE,	"",	P_BOOL },
-	{ "magic",		"ma",		TRUE,	"",	P_BOOL },
-	{ "memmove",	"mm",		FALSE,  "",	P_BOOL },
-	{ "offset",		"of",		0,		"",	P_NUM },
-	{ "readonly",	"ro",		FALSE,	"",	P_BOOL },
-	{ "scroll",		"scroll",	12,		"",	P_NUM },
-	{ "showmode",	"mo",		TRUE,	"",	P_BOOL },
-	{ "term",		"term",		0,		"",	P_TEXT },
-	{ "terse",		"terse",	FALSE,	"",	P_BOOL },
-	{ "unixstyle",	"us",		FALSE,	"",	P_BOOL },
-	{ "window",		"window",	25,		"",	P_NUM },
-	{ "wordlength",	"wl",		4,		"",	P_NUM },
-	{ "wrapscan",	"ws",		TRUE,	"",	P_BOOL },
-	{ "highlight",  "hl",       TRUE,   "", P_BOOL },
-	{ "",			"",			0,		"",	0, }		/* end marker */
-
+std::vector<param> params = {
+	{ "autowrite",	"aw",		false, false },
+	{ "columns",	"cm",		off_t{16}, false },
+	{ "errorbells",	"eb",		false, false },
+	{ "ignorecase",	"ic",		false, false },
+	{ "magic",		"ma",		true, false },
+	{ "memmove",	"mm",		false, false },
+	{ "offset",		"of",		off_t{0}, false },
+	{ "readonly",	"ro",		false, false },
+	{ "scroll",		"scroll",	off_t{12}, false },
+	{ "showmode",	"mo",		true, false },
+	{ "term",		"term",		std::string{}, false },
+	{ "terse",		"terse",	false, false },
+	{ "unixstyle",	"us",		false, false },
+	{ "window",		"window",	off_t{25}, false },
+	{ "wordlength",	"wl",		off_t{4}, false },
+	{ "wrapscan",	"ws",		true, false },
+	{ "highlight",	"hl",		true, false },
 };
 
 int
@@ -80,7 +78,7 @@ doset(char *arg)		/* parameter string */
 		state = FALSE;
 		arg += 2; }
 
-	for (i = 0; params[i].fullname[0] != '\0'; i++) {
+	for (i = 0; i < static_cast<int>(params.size()); i++) {
 		s = params[i].fullname;
 		if (strncmp(arg, s, strlen(s)) == 0)	/* matched full name */
 			break;
@@ -89,18 +87,18 @@ doset(char *arg)		/* parameter string */
 			break;
 	}
 
-	if (params[i].fullname[0] != '\0') {	/* found a match */
+	if (i < static_cast<int>(params.size())) {	/* found a match */
 		if (arg[strlen(s)] == '?') {
-			if (params[i].flags & P_BOOL)
+			if (std::holds_alternative<bool>(params[i].value))
 				sprintf(buf, "    %s%s",
-					(params[i].nvalue ? "  " : "no"), params[i].fullname);
-			else if (params[i].flags & P_TEXT)
+					(std::get<bool>(params[i].value) ? "  " : "no"),
+					params[i].fullname);
+			else if (std::holds_alternative<std::string>(params[i].value))
 				sprintf(buf, "      %s=%s", params[i].fullname,
-					params[i].svalue);
+					std::get<std::string>(params[i].value).c_str());
 			else
-
 				sprintf(buf, "      %s=%lld", params[i].fullname,
-					(long long)params[i].nvalue);
+					(long long)std::get<off_t>(params[i].value));
 			msg(buf);
 			return 0;
 		}
@@ -108,7 +106,7 @@ doset(char *arg)		/* parameter string */
 			emsg("Can't change type of terminal from within bvi");
 			return 1;
 		}
-		if (params[i].flags & P_NUM) {
+		if (std::holds_alternative<off_t>(params[i].value)) {
 			if ((i == P_LI) || (i == P_OF)) did_window++;
 			if (arg[strlen(s)] != '=' || state == FALSE) {
 				sprintf(string, "Option %s is not a toggle",
@@ -118,9 +116,9 @@ doset(char *arg)		/* parameter string */
 			} else {
 				char *end = nullptr;
 				s = arg + strlen(s) + 1;
-				params[i].nvalue = strtoll(s, &end, 0);
+				std::get<off_t>(params[i].value) = strtoll(s, &end, 0);
 				s = end;
-				params[i].flags |= P_CHANGED;
+				params[i].changed = true;
 				if (i == P_CM) {
 					if (((COLS - AnzAdd - 1) / 4) >= P(P_CM)) {
 						Anzahl = P(P_CM);
@@ -135,18 +133,21 @@ doset(char *arg)		/* parameter string */
 					stuffin("H");	/* set cursor at HOME */
 				}
 			}
-		} else {		/* boolean */
+		} else if (std::holds_alternative<bool>(params[i].value)) {
 			if (arg[strlen(s)] == '=') {
 				emsg("Invalid set of boolean parameter");
 				return 1;
 			} else {
-				params[i].nvalue = state;
-				params[i].flags |= P_CHANGED;
+				std::get<bool>(params[i].value) = state;
+				params[i].changed = true;
 				if (i == P_HL && state == FALSE) {
 					hl_spat = FALSE;
 					repaint();
 				}
 			}
+		} else {
+			emsg("Can't change type of terminal from within bvi");
+			return 1;
 		}
 	} else  {
 		emsg("No such option@- `set all' gives all option values");
@@ -166,25 +167,26 @@ doset(char *arg)		/* parameter string */
 void
 showparms(int all)
 {
-	struct	param	*p;
 	int		n;
 
 	n = 2;
 	msg("Parameters:\n");
-	for (p = &params[0]; p->fullname[0] != '\0' ;p++) {
-		if (!all && ((p->flags & P_CHANGED) == 0))
+	for (const auto& p : params) {
+		if (!all && !p.changed)
 			continue;
-		if (p->flags & P_BOOL)
+		if (std::holds_alternative<bool>(p.value))
 			sprintf(buf, "    %s%s\n",
-				(p->nvalue ? "  " : "no"), p->fullname);
-		else if (p->flags & P_TEXT)
-			sprintf(buf, "      %s=%s\n", p->fullname, p->svalue);
+				(std::get<bool>(p.value) ? "  " : "no"), p.fullname);
+		else if (std::holds_alternative<std::string>(p.value))
+			sprintf(buf, "      %s=%s\n", p.fullname,
+				std::get<std::string>(p.value).c_str());
 		else
-			sprintf(buf, "      %s=%lld\n", p->fullname, (long long)p->nvalue);
+			sprintf(buf, "      %s=%lld\n", p.fullname,
+				(long long)std::get<off_t>(p.value));
 
 		msg(buf);
 		n++;
-		if (n == params[P_LI].nvalue) {
+		if (n == P(P_LI)) {
 			if (wait_return(FALSE)) return;
 			n = 1;
 		}

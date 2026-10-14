@@ -181,7 +181,7 @@ docmdline(char *cmdline)
 			}
 		} else	sprintf(oldbuf, "\n%s\n", cmdbuf + 1);
 
-		if (P(P_AW)) {
+		if (B(P_AW)) {
 			save(name, mem, maxpos, WRITE);
 			edits = 0;
 		}
@@ -369,7 +369,7 @@ docmdline(char *cmdline)
 		if (chk_comm(NO_ADDR|ONE_FILE)) return;
 		if (!force) {
 			if (edits) {
-				if (P(P_AW)) {
+				if (B(P_AW)) {
 					save(name, mem, maxpos, WRITE);
 					edits = 0;
 				} else {
@@ -418,7 +418,7 @@ docmdline(char *cmdline)
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		if (!force) {
 			if (edits) {
-				if (P(P_AW)) {
+				if (B(P_AW)) {
 					save(name, mem, maxpos, WRITE);
 					edits = 0;
 				} else {
@@ -441,7 +441,7 @@ docmdline(char *cmdline)
 			return;
 		if (!force) {
 			if (edits) {
-				if (P(P_AW)) {
+				if (B(P_AW)) {
 					save(name, mem, maxpos, WRITE);
 					edits = 0;
 				} else {
@@ -555,7 +555,7 @@ docmdline(char *cmdline)
 		do_logic(NOT, "255");
 	} else {
 		sprintf(string, "What?|%s: Not an editor command", cmd);
-		if P(P_MM) {
+		if B(P_MM) {
 			if (!strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
 				if ((undo_count = yd_addr()) == 0L) return;
 				do_delete(undo_count, start_addr);
@@ -623,7 +623,7 @@ yd_addr()
 static int
 save_chk(char *fname, char *start, char *end, int flags)
 {
-   if (P(P_RO)) {
+   if (B(P_RO)) {
        sprintf(string, "\"%s\" File is read only", name);
        emsg(string);
        return FALSE;
@@ -713,8 +713,8 @@ emsg(const char *s)
 	int	cnt;
 	int stchar;
 
-	if (P(P_EB)) beep();
-	if (P(P_MO)) {
+	if (B(P_EB)) beep();
+	if (B(P_MO)) {
 		stchar = statsize;
 	} else {
 		stchar = 0;
@@ -746,7 +746,7 @@ sysemsg(const char *s)
 void
 smsg(const char *s)
 {
-	if (P(P_MO)) {
+	if (B(P_MO)) {
 		msg(s);
 		setcur();
 	}
@@ -759,7 +759,7 @@ msg(const char *s)
 {
 	int stchar;
 
-	if (P(P_MO)) {
+	if (B(P_MO)) {
 		stchar = statsize;
 	} else {
 		stchar = 0;
@@ -781,7 +781,7 @@ outmsg(const char *s)
 	move(maxy, 0);
 	poi = strchr(s, '|');
 
-	if (P(P_TE)) {
+	if (B(P_TE)) {
 		poi = s;
 		while (*poi != '\0' && *poi != '@' && *poi != '|') {
 			addch(*poi++);

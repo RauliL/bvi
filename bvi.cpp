@@ -133,8 +133,8 @@ main(int argc, char *argv[])
 	strtok(progname, ".");
 
 	if (!strcasecmp(progname, "bview")) {
-		params[P_RO].flags |= P_CHANGED;
-		P(P_RO) = TRUE;
+		params[P_RO].changed = true;
+		B(P_RO) = TRUE;
 	} else if (!strcasecmp(progname, "bvedit")) {
 		/* This should be the beginners version */
 	}
@@ -143,8 +143,8 @@ main(int argc, char *argv[])
 		switch (argv[n][0]) {
 		case '-':
 			if (argv[n][1] == 'R') {
-				params[P_RO].flags |= P_CHANGED;
-				P(P_RO) = TRUE;
+				params[P_RO].changed = true;
+				B(P_RO) = TRUE;
 			} else if (argv[n][1] == 'c') {
 				if (argv[n + 1] == nullptr) {
 					usage();
@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 				if (argv[n][2] == '\0') {
 					usage();
 				} else {
-					params[P_LI].flags |= P_CHANGED;
+					params[P_LI].changed = true;
 					P(P_LI) = atoi(argv[n] + 2);
 				}
 			} else usage();
@@ -261,10 +261,10 @@ main(int argc, char *argv[])
 	filesize = load(name);
 
 	bvi_init(argv[0]);
-	params[P_TT].svalue = terminal;
-	if (block_flag && (P(P_MM) == TRUE)) {
-		P(P_MM) = FALSE;
-		params[P_TT].flags |= P_CHANGED;
+	S(P_TT) = terminal;
+	if (block_flag && (B(P_MM) == TRUE)) {
+		B(P_MM) = FALSE;
+		params[P_TT].changed = true;
 	}
 	if (script > -1)
 		read_rc(argv[script]);
@@ -501,8 +501,8 @@ main(int argc, char *argv[])
 					refresh();
 					if (getcmdstr(line, 1)) break;
 					last_motion = current;
-					hl_spat = P(P_HL);
-					searching(ch, line, current, maxpos - 1, P(P_WS));
+					hl_spat = B(P_HL);
+					searching(ch, line, current, maxpos - 1, B(P_WS));
 					if (hl_spat) {
 						repaint();
 					}
@@ -513,8 +513,8 @@ main(int argc, char *argv[])
 					break;
 		case 'n': 		/**** Search Next ****/
 		case 'N':   last_motion = current;
-					hl_spat = P(P_HL);
-					searching(ch, "", current, maxpos - 1, P(P_WS));
+					hl_spat = B(P_HL);
+					searching(ch, "", current, maxpos - 1, B(P_WS));
 					if (hl_spat) {
 						repaint();
 					}
@@ -617,7 +617,7 @@ main(int argc, char *argv[])
 #endif
 
 		default :
-			if P(P_MM) {
+			if B(P_MM) {
 				if (precount < 1) precount = 1;
 				switch (ch) {
 				case 'I':
@@ -910,7 +910,7 @@ do_put(PTR loc, off_t n, PTR buf)
 void
 jmpproc(int sig)
 {
-	if (P(P_EB)) beep();
+	if (B(P_EB)) beep();
 	repaint();
 	clearstr();
     signal(SIGINT, SIG_IGN);
@@ -1025,7 +1025,7 @@ static void
 set_window_size()
 {
     maxy = LINES;
-    if ((params[P_LI].flags & P_CHANGED))
+    if (params[P_LI].changed)
     {
         maxy = P(P_LI);
     }

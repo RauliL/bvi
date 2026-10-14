@@ -459,7 +459,7 @@ statpos()
 	off_t	bytepos;
 	char	string[MAXCMD+1], str[6];
 
-	if (!P(P_MO)) return;
+	if (!B(P_MO)) return;
 	bytepos = current - mem;
 	if (bytepos >= filesize) {
 		// mvaddstr(maxy, status, "                           ");
@@ -472,10 +472,10 @@ statpos()
 	if (isprint(Char1)) {
 		sprintf(str, "'%c'", Char1);
 	} else if (Char1 < 32) {
-		if (P(P_US))	strcpy(str, contru[Char1]);
+		if (B(P_US))	strcpy(str, contru[Char1]);
 			else        strcpy(str, contrd[Char1]);
 	} else if (Char1 == 127) {
-		if (P(P_US))    strcpy(str, contru[32]);
+		if (B(P_US))    strcpy(str, contru[32]);
 			else        strcpy(str, contrd[32]);
 	} else {
 		strcpy(str, "   ");
@@ -739,7 +739,7 @@ fileinfo(char *fname)
 	}
 	if (filemode != NEW && filemode != REGULAR)
 		strcat(string, "[Not edited] ");
-	if (P(P_RO)) strcat(string, "[Read only] ");
+	if (B(P_RO)) strcat(string, "[Read only] ");
 	if (edits) strcat(string, "[Modified] ");
 	if (filesize) {
 		bytepos = (pagepos + y * Anzahl + xpos()) - mem + 1L;

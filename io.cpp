@@ -185,8 +185,8 @@ load(char *fname)
 				block_end = block_begin + block_size - 1;
 			}
 			if ((fd = open(fname, O_RDONLY)) > 0) {
-				P(P_RO) = TRUE;
-				params[P_RO].flags |= P_CHANGED;
+				B(P_RO) = TRUE;
+				params[P_RO].changed = true;
 			} else {
 				sysemsg(fname);
 				filemode = ERROR;
@@ -209,8 +209,8 @@ load(char *fname)
 					filemode = DIRECTORY;
 				}
 				if (access(fname, W_OK)) {
-					P(P_RO) = TRUE;
-					params[P_RO].flags |= P_CHANGED;
+					B(P_RO) = TRUE;
+					params[P_RO].changed = true;
 				}
 			} else {
 	            sysemsg(fname);
@@ -263,7 +263,7 @@ load(char *fname)
 				filemode = PARTIAL;
 				block_read = filesize;
 				P(P_OF) = block_begin;
-				params[P_OF].flags |= P_CHANGED;
+				params[P_OF].changed = true;
 			}
 			msg(string);
 			refresh();
@@ -285,7 +285,7 @@ load(char *fname)
 			break;
 		case REGULAR:
 			sprintf(string, "\"%s\" %s%llu bytes", fname,
-				P(P_RO) ? "[Read only] " : "",
+				B(P_RO) ? "[Read only] " : "",
 				(unsigned long long)filesize);
 			break;
 		case DIRECTORY:

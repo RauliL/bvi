@@ -56,7 +56,7 @@ bregexec(PTR start, char *scan)
 		switch (*scan++) {
 		case ONE:	/* exactly one character */
 				count = *scan++;
-				if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+				if (B(P_IC) && smode == ASCII)	test = toupper(*start);
 					else 						test = *start;
 				if (count == 1) {
 					/* if (test != *scan) return 0; */
@@ -71,12 +71,12 @@ bregexec(PTR start, char *scan)
 				break;
 		case STAR:  /* zero or more characters */
 				count = *scan++;
-				if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+				if (B(P_IC) && smode == ASCII)	test = toupper(*start);
 					else 						test = *start;
 				if (count == 1) {	/* only one character, 0 - n times */
 					while(test == *scan) {
 						*act++ = *start++;
-						if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+						if (B(P_IC) && smode == ASCII)	test = toupper(*start);
 							else 						test = *start;
 					}
 					scan++;
@@ -91,13 +91,13 @@ bregexec(PTR start, char *scan)
 							/* if (sbracket(test, scan, count)) return 0; */
 							if (sbracket(test, scan, count)) return nullptr;
 							*act++ = *start++;
-							if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+							if (B(P_IC) && smode == ASCII)	test = toupper(*start);
 								else 						test = *start;
 							}
 					} else {
 						while(!sbracket(test, scan, count)) {
 							*act++ = *start++;
-							if (P(P_IC) && smode == ASCII)	test = toupper(*start);
+							if (B(P_IC) && smode == ASCII)	test = toupper(*start);
 								else 						test = *start;
 						}
 						scan += count;
@@ -218,8 +218,8 @@ do_substitution(int delim, char *line, PTR startpos, PTR endpos)
 	static	char	find_pat[BUFFER];
 	static	char	repl_pat[MAXCMD];
 
-	ignore_case = P(P_IC);
-	magic = P(P_MA);
+	ignore_case = B(P_IC);
+	magic = B(P_MA);
 	switch (delim) {
 	case '/':
 	case '?':
@@ -312,10 +312,10 @@ AGAIN:
 	}
 	if (!found) {
 		if (!repl_count) {
-			if (P(P_WS)) {
+			if (B(P_WS)) {
 				emsg(notfound);
 			} else {
-				if (P(P_TE))
+				if (B(P_TE))
 				  sprintf(string, "No match to %s", direct == FORWARD ? "BOTTOM" : "TOP");
 				else
 				  sprintf(string, "Address search hit %s without matching pattern",
@@ -373,8 +373,8 @@ searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
 		return 0L;
 	}
 
-	ignore_case = (P(P_IC));
-	magic = P(P_MA);
+	ignore_case = (B(P_IC));
+	magic = B(P_MA);
 	start_addr--;
 	if ((strchr("\\#", ch) && loc == ASCII)
 		|| (strchr("/?", ch) && loc == HEX)) {
@@ -433,7 +433,7 @@ searching(int ch, char *line, PTR startpos, PTR endpos, int flag)
 		if (flag & 1) {
 			emsg(notfound);
 		} else {
-			if (P(P_TE)) {
+			if (B(P_TE)) {
 			  sprintf(string, "No match to %s", sdir == FORWARD ? "BOTTOM" : "TOP");
 			} else {
 			  sprintf(string, "Address search hit %s without matching pattern",
