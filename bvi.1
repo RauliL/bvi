@@ -356,11 +356,13 @@ ESC to cancel the current command and return to command mode.
 The editor recognizes the environment variable BVIINIT as  a
 command  (or  list of commands) to run when it starts up. If
 this variable is undefined, the editor  checks  for  startup
-commands  in  the  file  \fI~/.bvirc\fR  file, which you must own.
-However, if there is a \fI.bvirc\fR owned by you  in  the  current
-directory,  the  editor takes its startup commands from this
-file \- overriding both the file in your home  directory  and
-the environment variable.
+commands  in  the  file  \fI$XDG_CONFIG_HOME/bvi/init.bvi\fR
+(or \fI~/.config/bvi/init.bvi\fR if \fIXDG_CONFIG_HOME\fR is
+unset), which you must own.
+The editor also recognizes the environment variable
+\fIXDG_CONFIG_HOME\fR, which selects the base directory for
+the startup file according to the XDG Base Directory
+Specification.
 .SH "TERMINOLOGY"
 .IX Header "TERMINOLOGY"
 Characters names are abbreviated as follows:
@@ -608,8 +610,9 @@ Vi\ Pages:\ \ \ \ \ \ http://www.guckes.net/vi/clones.php3
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (all\ about\ Vi\ and\ its\ clones)
 .SH "FILES"
 .IX Header "FILES"
-\fI\ $HOME/.bvirc\fR\ \ \ \ \ \ \ \ \ \ editor\ startup\ file
-\fI\ ./.bvirc\fR\ \ \ \ \ \ \ \ \ \ \ \ \ \ editor\ startup\ file
+\fI\ $XDG_CONFIG_HOME/bvi/init.bvi\fR\ \ \ \ editor\ startup\ file
+\fI\ $HOME/.config/bvi/init.bvi\fR\ \ \ \ \ \ editor\ startup\ file
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (if\ XDG_CONFIG_HOME\ is\ unset)
 .SH "BUGS"
 .IX Header "BUGS"
 Bvi does not update the screen when the terminal changes its size.
