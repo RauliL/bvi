@@ -1,3 +1,5 @@
+#pragma once
+
 /* config.h.in. Generated automatically by CMake.  */
 
 #cmakedefine HAVE_NCURSES_H
