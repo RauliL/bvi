@@ -33,10 +33,12 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <format>
+#include <string>
+
 static	bool		from_file = false;
 static	FILE	*ffp;
 static	char	fbuf[MAXCMD+1];
-static	char	buf[MAXCMD+1];
 
 std::vector<param> params = {
 	{ "autowrite",	"aw",		false, false },
@@ -65,7 +67,6 @@ doset(const char *arg)		/* parameter string */
 	const char	*s;
 	bool		did_window = false;
 	bool		state = true;		/* new state of boolean parms. */
-	char	string[80];
 
 	if (arg == nullptr) {
 		showparms(false);
@@ -89,17 +90,18 @@ doset(const char *arg)		/* parameter string */
 
 	if (i < static_cast<int>(params.size())) {	/* found a match */
 		if (arg[strlen(s)] == '?') {
+			std::string buf;
 			if (std::holds_alternative<bool>(params[i].value))
-				sprintf(buf, "    %s%s",
+				buf = std::format("    {}{}",
 					(std::get<bool>(params[i].value) ? "  " : "no"),
 					params[i].fullname);
 			else if (std::holds_alternative<std::string>(params[i].value))
-				sprintf(buf, "      %s=%s", params[i].fullname,
-					std::get<std::string>(params[i].value).c_str());
+				buf = std::format("      {}={}", params[i].fullname,
+					std::get<std::string>(params[i].value));
 			else
-				sprintf(buf, "      %s=%lld", params[i].fullname,
-					(long long)std::get<off_t>(params[i].value));
-			msg(buf);
+				buf = std::format("      {}={}", params[i].fullname,
+					std::get<off_t>(params[i].value));
+			msg(buf.c_str());
 			return 0;
 		}
 		if (!strcmp(params[i].fullname, "term")) {
@@ -109,9 +111,8 @@ doset(const char *arg)		/* parameter string */
 		if (std::holds_alternative<off_t>(params[i].value)) {
 			if ((i == P_LI) || (i == P_OF)) did_window = true;
 			if (arg[strlen(s)] != '=' || state == false) {
-				sprintf(string, "Option %s is not a toggle",
-						params[i].fullname);
-				emsg(string);
+				emsg(std::format("Option {} is not a toggle",
+						params[i].fullname).c_str());
 				return 1;
 			} else {
 				char *end = nullptr;
@@ -174,17 +175,18 @@ showparms(bool all)
 	for (const auto& p : params) {
 		if (!all && !p.changed)
 			continue;
+		std::string buf;
 		if (std::holds_alternative<bool>(p.value))
-			sprintf(buf, "    %s%s\n",
+			buf = std::format("    {}{}\n",
 				(std::get<bool>(p.value) ? "  " : "no"), p.fullname);
 		else if (std::holds_alternative<std::string>(p.value))
-			sprintf(buf, "      %s=%s\n", p.fullname,
-				std::get<std::string>(p.value).c_str());
+			buf = std::format("      {}={}\n", p.fullname,
+				std::get<std::string>(p.value));
 		else
-			sprintf(buf, "      %s=%lld\n", p.fullname,
-				(long long)std::get<off_t>(p.value));
+			buf = std::format("      {}={}\n", p.fullname,
+				std::get<off_t>(p.value));
 
-		msg(buf);
+		msg(buf.c_str());
 		n++;
 		if (n == P(P_LI)) {
 			if (wait_return(false)) return;
