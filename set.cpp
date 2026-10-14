@@ -41,7 +41,6 @@ namespace fs = std::filesystem;
 
 static	bool		from_file = false;
 static	FILE	*ffp;
-static	char	fbuf[MAXCMD+1];
 
 std::vector<param> params = {
 	{ "autowrite",	"aw",		false, false },

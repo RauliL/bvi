@@ -356,11 +356,9 @@ enlarge(off_t add)
 void
 do_shell()
 {
-	int ret;
-
 	addch('\n');
 	savetty();
-	ret = std::system(shell);
+	std::system(shell);
 	resetty();
 }
 

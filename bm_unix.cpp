@@ -98,7 +98,7 @@ initterm()
 
 	no_intty = tcgetattr(fileno(stdin), &ostate);
 	tcgetattr(fileno(stderr), &ostate);
-	  
+
 	nstate = ostate;
 	if (!no_tty) {
 		ostate.c_lflag &= ~(ICANON|ECHO);
@@ -139,14 +139,22 @@ sig(int sig)
 void
 doshell(const char *cmd)
 {
-	int	ret;
-	const char	*shell;
+	std::string shell;
 	std::string	cline;
 
 	std::printf("\n");
 
-	if ((shell = std::getenv("SHELL")) == nullptr) shell = "sh";
-	else if(std::strrchr(shell,'/')) shell = std::strrchr(shell,'/')+1;
+	if (const auto shell_env_var = std::getenv("SHELL")) {
+		std::string::size_type pos;
+
+		shell = shell_env_var;
+		pos = shell.rfind(std::filesystem::path::preferred_separator);
+		if (pos != std::string::npos) {
+			shell = shell.substr(pos + 1);
+		}
+	} else {
+		shell = "sh";
+	}
 
 	if (cmd[0] == '\0') {
 		cline = std::format("{} -i", shell);
@@ -155,7 +163,7 @@ doshell(const char *cmd)
 	}
 
 	reset_tty();
-	ret = std::system(cline.c_str());
+	std::system(cline.c_str());
 	set_tty();
 	std::printf("\r");
 	home();

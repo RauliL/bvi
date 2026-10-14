@@ -1051,7 +1051,7 @@ set_window_size()
         {
             AnzAdd = 8;
         }
-        if (AnzAdd > sizeof(block_begin) * 2)
+        if (AnzAdd > static_cast<int>(sizeof(block_begin) * 2))
         {
             AnzAdd = sizeof(block_begin) * 2;
         }

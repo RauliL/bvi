@@ -5,8 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-Wwrite-strings -Wcast-qual)
-
 option(
   COMPILE_BMORE
   "Whether to also compile bmore binary or not."
@@ -61,6 +59,12 @@ target_compile_features(
     cxx_std_20
 )
 
+target_compile_options(
+  bvi
+  PRIVATE
+    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall;-Werror>
+)
+
 target_include_directories(
   bvi
   PRIVATE
@@ -95,6 +99,18 @@ if(COMPILE_BMORE)
     bmore.cpp
     bm_unix.cpp
     recomp.cpp
+  )
+
+  target_compile_features(
+    bmore
+    PRIVATE
+      cxx_std_20
+  )
+
+  target_compile_options(
+    bmore
+    PRIVATE
+      $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall;-Werror>
   )
 
   target_include_directories(

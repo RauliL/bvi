@@ -30,7 +30,7 @@
 /* You cannot use a common regexp subroutine, because \0 is a regular
  * character in a binary string !
  */
- 
+
 #include	"bvi.hpp"
 #include	"set.hpp"
 
@@ -483,9 +483,9 @@ fsearch_end(PTR start, PTR end, const char *smem, PTR *s_end)
 	std::signal(SIGINT, jmpproc);
 	for (spos = start; spos <= end; spos++) {
 		/* if (bregexec(spos, smem)) { */
-		if (*s_end = bregexec(spos, smem)) {
+		if ((*s_end = bregexec(spos, smem))) {
 			std::signal(SIGINT, SIG_IGN);
-			*s_end++;
+			++(*s_end);
 			return(spos);
 		}
 	}

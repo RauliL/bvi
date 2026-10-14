@@ -132,10 +132,10 @@ usage()
 int
 main(int argc, char *argv[])
 {
-	int		ch, ch1;
+	int		ch;
 	int		colon = 0, last_ch = 0;
 	long	last_pre = 0;
-	int		lflag, repeat;
+	int		repeat;
 	long	count;
 	int		i, n = 1;
 	int		d_line, r_line, z_line;
@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 	std::setlocale(LC_ALL, "");
 
 	poi = std::strrchr(argv[0], DELIM);
- 
+
 	if (poi) std::strncpy(progname, ++poi, 9);
 	else std::strncpy(progname, argv[0], 9);
 	std::strtok(progname, ".");
@@ -179,7 +179,7 @@ main(int argc, char *argv[])
 								break;
 					case 'i':	ignore_case = true;
 								break;
-					default:		
+					default:
 								usage();
 					}
 					i++;
@@ -303,7 +303,6 @@ main(int argc, char *argv[])
 		}
 		if (!numarr.empty()) precount = std::strtol(numarr.c_str(), nullptr, 10);
 			else precount = -1;
-		lflag = 0;
 		numarr.clear();
 
 		if (ch == '.') {
@@ -340,7 +339,7 @@ main(int argc, char *argv[])
 					std::fclose(curr_file);
 					reset_tty();
 					std::exit(exval);
-		case ':' :	
+		case ':' :
 					switch (colon) {
 					case 'f':
 						prompt = 0;
@@ -449,7 +448,7 @@ main(int argc, char *argv[])
 					bytepos = screen_home;
 					to_print = maxy;
 					break;
-		case '\\':  
+		case '\\':
 					if (ascii_flag) {
 						bmbeep();
 						break;
@@ -460,13 +459,13 @@ main(int argc, char *argv[])
 						if (rdline(ch, sstring)) break;
 					}
 		case 'n': 		/**** Search Next ****/
-		case 'N':   
+		case 'N':
 					bmsearch(ch);
 					/*
 					to_print--;
 					*/
 					break;
-		case '\'':   
+		case '\'':
 					if (no_intty) {
 						bmbeep();
 					} else {
@@ -660,7 +659,7 @@ printout(int lns)
 	int			c, num;
 	int			doub = 0;
 	static		bool		flag = false;
-	
+
 	if (c_flag) {
 		clearscreen();
 	}

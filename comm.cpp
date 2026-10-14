@@ -103,7 +103,7 @@ docmdline(const char *cmdline)
 	char	*cmd;
 	char	*p;
 	size_t	len;
-	int		n, ok, ret;
+	int		n, ok;
 	bool		force = false;
 	int		saveflag;
 
@@ -192,7 +192,7 @@ docmdline(const char *cmdline)
 		if (edits) msg("[No write]|[No write since last change]");
 		savetty();
 		endwin();
-		ret = std::system(cmdbuf + 1);
+		std::system(cmdbuf + 1);
 		std::fprintf(stderr, "[Hit return to continue]");
 		std::getchar();
 		doupdate();
