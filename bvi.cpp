@@ -44,6 +44,8 @@
 
 namespace fs = std::filesystem;
 
+static constexpr int space = 2;
+
 
 
 const char	*copyright  = "Copyright (C) 1996-2014 by Gerhard Buergmann";
@@ -434,9 +436,13 @@ main(int argc, char *argv[])
 					fileinfo(name);
 					wrstat = false;
 					break;
+
+		case KEY_RESIZE:
+					set_window_size();
 		case BVICTRL('L'):   	/*** REDRAW SCREEN ***/
 					new_screen();
 					break;
+
 		case BVICTRL('Y'):
 					if (y < maxy - 1) y++;
 					scrollup(1);
@@ -611,14 +617,6 @@ main(int argc, char *argv[])
 						stuffin(rep_buf);
 					}
 					break;
-
-#if defined(HAVE_NCURSES_H)
-        case KEY_RESIZE:
-            set_window_size();
-            clear();
-            repaint();
-            break;
-#endif
 
 		default :
 			if B(P_MM) {
@@ -1061,7 +1059,7 @@ set_window_size()
         AnzAdd = std::snprintf(tmp, sizeof(tmp), addr_form, block_begin);
     }
 
-	Anzahl = ((COLS - AnzAdd - 1) / 16) * 4;
+	Anzahl = ((COLS - AnzAdd - space) / 16) * 4;
 	P(P_CM) = Anzahl;
 	maxx = Anzahl * 4 + AnzAdd + 1;
 	Anzahl3 = Anzahl * 3;
