@@ -35,13 +35,17 @@
 #include "bvi.hpp"
 #include "set.hpp"
 
+#include <algorithm>
 #include <functional>
-#include <filesystem>
 #include <format>
-#include <string>
+#include <optional>
 #include <system_error>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
+
+#include <peelo/xdg.hpp>
 
 namespace fs = std::filesystem;
 
@@ -563,33 +567,46 @@ cmd_put(CmdState& st)
 	do_put(start_addr, yanked, yank_buf);
 }
 
+struct CmdTables {
+	std::unordered_map<std::string, CmdHandler> map;
+	std::vector<std::string> names;	/* canonical names for completion */
+	std::unordered_set<std::string> file_arg_abbrevs;
+};
+
 /*
  * Build the colon-command table. Abbreviations are registered in the same
  * priority order as the old if/else chain: first registration wins.
  */
-static std::unordered_map<std::string, CmdHandler>
-make_cmd_map()
+static CmdTables
+make_cmd_tables()
 {
-	std::unordered_map<std::string, CmdHandler> map;
+	CmdTables tables;
 
-	auto add = [&](const char* name, int min_len, CmdHandler fn) {
+	auto add = [&](const char* name, int min_len, CmdHandler fn, bool file_arg = false) {
+		tables.names.emplace_back(name);
 		const size_t n = std::strlen(name);
 		for (size_t len = static_cast<size_t>(min_len); len <= n; ++len) {
-			map.emplace(std::string(name, len), fn);
+			std::string abbrev(name, len);
+			tables.map.emplace(abbrev, fn);
+			if (file_arg) {
+				tables.file_arg_abbrevs.insert(abbrev);
+			}
 		}
 	};
 
 	add("substitute", 1, cmd_substitute);
 	add("global", 1, cmd_global);
-	add("write", 1, cmd_write);
-	map.emplace("wq", cmd_write);
+	add("write", 1, cmd_write, true);
+	tables.map.emplace("wq", cmd_write);
+	tables.names.emplace_back("wq");
+	tables.file_arg_abbrevs.insert("wq");
 	add("set", 2, cmd_set);
 	add("args", 2, cmd_args);
-	add("source", 2, cmd_source);
-	add("cd", 2, cmd_cd);
-	add("edit", 1, cmd_edit);
-	add("file", 1, cmd_file);
-	add("read", 1, cmd_read);
+	add("source", 2, cmd_source, true);
+	add("cd", 2, cmd_cd, true);
+	add("edit", 1, cmd_edit, true);
+	add("file", 1, cmd_file, true);
+	add("read", 1, cmd_read, true);
 	add("xit", 1, cmd_xit);
 	add("next", 1, cmd_next);
 	add("rewind", 3, cmd_rewind);
@@ -615,14 +632,403 @@ make_cmd_map()
 	add("insert", 1, cmd_insert);
 	add("put", 2, cmd_put);
 
-	return map;
+	std::sort(tables.names.begin(), tables.names.end());
+	return tables;
+}
+
+static const CmdTables&
+cmd_tables()
+{
+	static const auto tables = make_cmd_tables();
+	return tables;
 }
 
 static const std::unordered_map<std::string, CmdHandler>&
 cmd_map()
 {
-	static const auto map = make_cmd_map();
-	return map;
+	return cmd_tables().map;
+}
+
+static size_t
+skip_ex_white(std::string_view s, size_t i)
+{
+	while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) {
+		++i;
+	}
+	return i;
+}
+
+static size_t
+skip_ex_number(std::string_view s, size_t i, int base)
+{
+	if (i >= s.size()) {
+		return i;
+	}
+	char *end = nullptr;
+	std::string tmp{s.substr(i)};
+	(void)std::strtoll(tmp.c_str(), &end, base);
+	if (end && end != tmp.c_str()) {
+		i += static_cast<size_t>(end - tmp.c_str());
+	}
+	return i;
+}
+
+/* Skip one address expression for completion purposes (no side effects). */
+static size_t
+skip_ex_addr(std::string_view s, size_t i)
+{
+	i = skip_ex_white(s, i);
+	if (i >= s.size()) {
+		return i;
+	}
+
+	const char ch = s[i];
+	if (ch >= '1' && ch <= '9') {
+		i = skip_ex_number(s, i, 10);
+	} else if (ch == '0') {
+		i = skip_ex_number(s, i, 16);
+	} else if (ch == '.' || ch == '^' || ch == '$') {
+		++i;
+	} else if (ch == '\'') {
+		++i;
+		if (i < s.size()) {
+			++i;
+		}
+	} else if (ch == '/' || ch == '\\' || ch == '?' || ch == '#') {
+		const char delim = ch;
+		++i;
+		while (i < s.size() && s[i] != delim) {
+			if (s[i] == '\\' && i + 1 < s.size()) {
+				i += 2;
+			} else {
+				++i;
+			}
+		}
+		if (i < s.size() && s[i] == delim) {
+			++i;
+		}
+	} else {
+		return i;
+	}
+
+	i = skip_ex_white(s, i);
+	while (i < s.size() && (s[i] == '+' || s[i] == '-')) {
+		++i;
+		i = skip_ex_white(s, i);
+		i = skip_ex_number(s, i, 0);
+		i = skip_ex_white(s, i);
+	}
+	return i;
+}
+
+struct ExLineParts {
+	size_t cmd_start = 0;
+	size_t cmd_end = 0;
+	size_t arg_start = std::string::npos;	/* last argument token, if any */
+};
+
+static ExLineParts
+parse_ex_line(std::string_view line)
+{
+	ExLineParts parts;
+	size_t i = skip_ex_white(line, 0);
+	if (i < line.size() && line[i] == '%') {
+		i = skip_ex_white(line, i + 1);
+	} else {
+		const size_t before = i;
+		i = skip_ex_addr(line, i);
+		if (i != before) {
+			i = skip_ex_white(line, i);
+			if (i < line.size() && line[i] == ',') {
+				i = skip_ex_addr(line, i + 1);
+				i = skip_ex_white(line, i);
+			}
+		}
+	}
+
+	parts.cmd_start = i;
+	while (i < line.size() && line[i] >= 'a' && line[i] <= 'z') {
+		++i;
+	}
+	parts.cmd_end = i;
+
+	if (i < line.size() && line[i] == '!') {
+		++i;
+	}
+	i = skip_ex_white(line, i);
+
+	/* :w>>file / :w >> file */
+	if (i + 1 < line.size() && line[i] == '>' && line[i + 1] == '>') {
+		i += 2;
+		i = skip_ex_white(line, i);
+	}
+
+	if (i < line.size()) {
+		/* Complete the last whitespace-separated token. */
+		size_t tok = i;
+		for (size_t j = i; j < line.size(); ++j) {
+			if (line[j] == ' ' || line[j] == '\t') {
+				tok = j + 1;
+			}
+		}
+		parts.arg_start = tok;
+	}
+	return parts;
+}
+
+static std::string
+longest_common_prefix(const std::vector<std::string>& names)
+{
+	if (names.empty()) {
+		return {};
+	}
+	std::string_view prefix = names[0];
+	for (size_t n = 1; n < names.size(); ++n) {
+		size_t k = 0;
+		while (k < prefix.size() && k < names[n].size()
+				&& prefix[k] == names[n][k]) {
+			++k;
+		}
+		prefix = prefix.substr(0, k);
+		if (prefix.empty()) {
+			break;
+		}
+	}
+	return std::string{prefix};
+}
+
+/* Apply matches to line[before]+prefix with LCP / unique / cycle semantics. */
+static bool
+apply_completion(std::string& line, const std::string& before,
+		const std::string& prefix, std::vector<std::string> matches,
+		std::string& saved_before, std::vector<std::string>& saved_matches,
+		size_t& index, bool& cycling)
+{
+	std::sort(matches.begin(), matches.end());
+	matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+
+	const bool same_context = cycling && before == saved_before
+		&& std::find(saved_matches.begin(), saved_matches.end(), prefix)
+			!= saved_matches.end();
+
+	if (!same_context) {
+		saved_matches = std::move(matches);
+		saved_before = before;
+		index = 0;
+		cycling = false;
+
+		if (saved_matches.empty()) {
+			return false;
+		}
+		if (saved_matches.size() == 1) {
+			line = before + saved_matches[0];
+			cycling = true;
+			return true;
+		}
+
+		const std::string lcp = longest_common_prefix(saved_matches);
+		if (lcp.size() > prefix.size()) {
+			line = before + lcp;
+			return true;
+		}
+
+		line = before + saved_matches[0];
+		cycling = true;
+		return true;
+	}
+
+	index = (index + 1) % saved_matches.size();
+	line = before + saved_matches[index];
+	return true;
+}
+
+static std::string
+expand_tilde(std::string_view path)
+{
+	if (path.empty() || path[0] != '~') {
+		return std::string{path};
+	}
+
+	if (const auto home_dir = peelo::xdg::home_dir()) {
+		if (path.size() == 1) {
+			return home_dir->string();
+		} else if (path[1] == std::filesystem::path::preferred_separator) {
+			return home_dir->string() + std::string(path.substr(1));
+		}
+	}
+
+	return std::string{path};
+}
+
+static std::vector<std::string>
+filename_matches(std::string_view typed)
+{
+	std::vector<std::string> matches;
+
+	if (typed == "~") {
+		matches.emplace_back("~/");
+		return matches;
+	}
+
+	const std::string expanded = expand_tilde(typed);
+	const bool trailing_sep = !expanded.empty()
+		&& (expanded.back() == '/' || expanded.back() == '\\');
+
+	fs::path partial{expanded};
+	fs::path dir;
+	std::string file_prefix;
+
+	if (trailing_sep) {
+		dir = partial;
+		file_prefix.clear();
+	} else if (typed.find('/') != std::string_view::npos
+			|| typed.find('\\') != std::string_view::npos) {
+		dir = partial.parent_path();
+		if (dir.empty()) {
+			dir = "/";
+		}
+		file_prefix = partial.filename().string();
+	} else {
+		dir = ".";
+		file_prefix = expanded;
+	}
+
+	std::error_code ec;
+	if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) {
+		return matches;
+	}
+
+	/* Directory portion as the user typed it (for rebuilding matches). */
+	std::string typed_dir;
+	if (trailing_sep) {
+		typed_dir = std::string{typed};
+	} else {
+		const auto slash = typed.find_last_of("/\\");
+		if (slash != std::string_view::npos) {
+			typed_dir = std::string{typed.substr(0, slash + 1)};
+		}
+	}
+
+	for (const auto& entry : fs::directory_iterator(dir,
+			fs::directory_options::skip_permission_denied, ec)) {
+		if (ec) {
+			break;
+		}
+		const std::string name = entry.path().filename().string();
+		if (name.empty()) {
+			continue;
+		}
+		if (name[0] == '.' && (file_prefix.empty() || file_prefix[0] != '.')) {
+			continue;
+		}
+		if (name.size() < file_prefix.size()
+				|| name.compare(0, file_prefix.size(), file_prefix) != 0) {
+			continue;
+		}
+
+		std::error_code entry_ec;
+		const bool is_dir = entry.is_directory(entry_ec);
+		std::string candidate = typed_dir + name;
+		if (is_dir) {
+			candidate.push_back('/');
+		}
+		matches.push_back(std::move(candidate));
+	}
+	return matches;
+}
+
+static bool
+ex_complete_filename(std::string& line, const ExLineParts& parts,
+		std::string& saved_before, std::vector<std::string>& saved_matches,
+		size_t& index, bool& cycling)
+{
+	if (parts.cmd_end == parts.cmd_start) {
+		return false;
+	}
+	const std::string cmd{line.substr(parts.cmd_start,
+		parts.cmd_end - parts.cmd_start)};
+	if (!cmd_tables().file_arg_abbrevs.contains(cmd)) {
+		return false;
+	}
+	/* Need to be in the argument (past the command name). */
+	if (parts.arg_start == std::string::npos) {
+		/* Command finished but no arg yet — complete from empty prefix. */
+		if (parts.cmd_end >= line.size()) {
+			return false;
+		}
+	}
+
+	size_t arg_start = parts.arg_start;
+	if (arg_start == std::string::npos) {
+		/* e.g. "edit " with trailing space — parse left arg_start unset when
+		 * only whitespace remains after optional ! / >>. Re-derive. */
+		size_t i = parts.cmd_end;
+		if (i < line.size() && line[i] == '!') {
+			++i;
+		}
+		i = skip_ex_white(line, i);
+		if (i + 1 < line.size() && line[i] == '>' && line[i + 1] == '>') {
+			i += 2;
+			i = skip_ex_white(line, i);
+		}
+		if (i > line.size()) {
+			return false;
+		}
+		arg_start = i;
+	}
+
+	/* Only while editing the filename token through end of line. */
+	if (arg_start > line.size()) {
+		return false;
+	}
+
+	const std::string before{line.substr(0, arg_start)};
+	const std::string prefix{line.substr(arg_start)};
+	auto matches = filename_matches(prefix);
+	return apply_completion(line, before, prefix, std::move(matches),
+		saved_before, saved_matches, index, cycling);
+}
+
+/*
+ * Tab-complete an ex command name or, for file-taking commands, a filename.
+ * Repeated Tab cycles through matches.
+ */
+bool
+ex_complete_command(std::string& line)
+{
+	static std::string saved_before;
+	static std::vector<std::string> saved_matches;
+	static size_t index = 0;
+	static bool cycling = false;
+
+	const ExLineParts parts = parse_ex_line(line);
+
+	/* Command-name completion while still typing the name. */
+	if (parts.cmd_end == line.size() && parts.cmd_start <= parts.cmd_end) {
+		const std::string before{line.substr(0, parts.cmd_start)};
+		const std::string prefix{line.substr(parts.cmd_start)};
+		std::vector<std::string> matches;
+		for (const auto& name : cmd_tables().names) {
+			if (name.size() >= prefix.size()
+					&& name.compare(0, prefix.size(), prefix) == 0) {
+				matches.push_back(name);
+			}
+		}
+		if (apply_completion(line, before, prefix, std::move(matches),
+				saved_before, saved_matches, index, cycling)) {
+			return true;
+		}
+		beep();
+		return false;
+	}
+
+	if (ex_complete_filename(line, parts, saved_before, saved_matches,
+			index, cycling)) {
+		return true;
+	}
+
+	beep();
+	return false;
 }
 
 /*

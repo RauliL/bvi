@@ -307,8 +307,18 @@ do_logic(int mode, const char *str)
 }
 
 
+static void
+redraw_cmdstr(const std::string& p, int x)
+{
+	move(maxy, x);
+	clrtoeol();
+	for (char ch : p) {
+		addch(ch);
+	}
+}
+
 int
-getcmdstr(std::string& p, int x)
+getcmdstr(std::string& p, int x, bool cmd_completion)
 {
 	int		c;
 	int		n;
@@ -351,6 +361,16 @@ getcmdstr(std::string& p, int x)
                 return 1;
             }
             break;
+		case '\t':
+			if (cmd_completion && ex_complete_command(p)) {
+				redraw_cmdstr(p, x);
+			} else if (!cmd_completion) {
+				addch(c);
+				p.push_back(static_cast<char>(c));
+			} else {
+				beep();
+			}
+			break;
         case ESC:           /* abandon command */
 			p.clear();
             msg("");

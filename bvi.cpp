@@ -394,7 +394,7 @@ main(int argc, char *argv[])
 		case ':' :	clearstr();
 					addch(ch);
 					refresh();
-					getcmdstr(cmdstr, 1);
+					getcmdstr(cmdstr, 1, true);
 					if (!cmdstr.empty())
 						docmdline(cmdstr);
 					break;
