@@ -89,6 +89,7 @@ initterm()
 	clearptr = clearbuf;
 	erase_ln = tgetstr("ce", &clearptr);
 	clear_sc = tgetstr("cl", &clearptr);
+	Home = tgetstr("ho", &clearptr);
 	rev_start = tgetstr("so", &clearptr);
 	rev_end = tgetstr("se", &clearptr);
 
@@ -193,7 +194,8 @@ clearscreen()
 void
 home()
 {
-	tputs(Home, 1, putchr);
+	if (Home)
+		tputs(Home, 1, putchr);
 }
 
 
