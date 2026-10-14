@@ -152,8 +152,8 @@ load(const char *fname)
 			} else {
 				move(maxy, 0);
 				endwin();
-				perror(fname);
-				exit(0);
+				std::perror(fname);
+				std::exit(0);
 			}
 		/*
 		} else if (S_ISDIR(buf.st_mode)) {
@@ -183,8 +183,8 @@ load(const char *fname)
            if ((unsigned long long)buf.st_size > (unsigned long long)OFF_T_MAX) {
 				move(maxy, 0);
 				endwin();
-				printf("File too large\n");
-				exit(0);
+				std::printf("File too large\n");
+				std::exit(0);
 			}
 #endif
 			if ((fd = open(fname, O_RDONLY)) > 0) {
@@ -205,7 +205,7 @@ load(const char *fname)
 	} else {
 		filemode = NEW;
 	}
-	if (mem != nullptr) free(mem);
+	if (mem != nullptr) std::free(mem);
 	memsize = 1024;
 	if (block_flag) {
 		if (block_flag == BLOCK_BEGIN) {
@@ -215,11 +215,11 @@ load(const char *fname)
 	} else if (filemode == REGULAR) {
 		memsize += buf.st_size;
 	}
-	if ((mem = static_cast<char*>(malloc(memsize))) == nullptr) {
+	if ((mem = static_cast<char*>(std::malloc(memsize))) == nullptr) {
 		move(maxy, 0);
 		endwin();
-		printf("Out of memory\n");
-		exit(0);
+		std::printf("Out of memory\n");
+		std::exit(0);
 	}
 	clear_marks();
 
@@ -290,17 +290,17 @@ bvi_init(const char *dir)
 {
 	char    *initstr;
 
-	terminal = getenv("TERM");
-	shell = getenv("SHELL");
+	terminal = std::getenv("TERM");
+	shell = std::getenv("SHELL");
 	if (shell == nullptr || *shell == '\0')
 		shell = "/bin/sh";
 
-	if ((initstr = getenv("BVIINIT")) != nullptr) {
+	if ((initstr = std::getenv("BVIINIT")) != nullptr) {
 		docmdline(initstr);
 		return;
 	}
 
-	const char *home = getenv("HOME");
+	const char *home = std::getenv("HOME");
 	std::string rcpath = home ? std::string(home) + "/.bvirc" : "/.bvirc";
 	if (stat(rcpath.c_str(), &buf) == 0) {
 		if (buf.st_uid == getuid()) read_rc(rcpath.c_str());
@@ -325,9 +325,9 @@ enlarge(off_t add)
 	saveundo = undo_start - mem;
 
 	if (mem == nullptr) {
-		newmem = static_cast<char*>(malloc(memsize + add));
+		newmem = static_cast<char*>(std::malloc(memsize + add));
 	} else {
-		newmem = static_cast<char*>(realloc(mem, memsize + add));
+		newmem = static_cast<char*>(std::realloc(mem, memsize + add));
 	}
 	if (newmem == nullptr) {
 		emsg("Out of memory");
@@ -352,7 +352,7 @@ do_shell()
 
 	addch('\n');
 	savetty();
-	ret = system(shell);
+	ret = std::system(shell);
 	resetty();
 }
 
@@ -361,9 +361,9 @@ off_t
 alloc_buf(off_t n, char **buffer)
 {
 	if (*buffer == nullptr) {
-		*buffer = static_cast<char*>(malloc(n));
+		*buffer = static_cast<char*>(std::malloc(n));
 	} else {
-		*buffer = static_cast<char*>(realloc(*buffer, n));
+		*buffer = static_cast<char*>(std::realloc(*buffer, n));
 	}
 	if (*buffer == nullptr) {
 		emsg("No buffer space available");

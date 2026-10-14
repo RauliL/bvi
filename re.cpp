@@ -59,7 +59,7 @@ bregexec(PTR start, const char *scan)
 		switch (*scan++) {
 		case ONE:	/* exactly one character */
 				count = *scan++;
-				if (B(P_IC) && smode == ASCII)	test = toupper(*start);
+				if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 					else 						test = *start;
 				if (count == 1) {
 					/* if (test != *scan) return 0; */
@@ -74,12 +74,12 @@ bregexec(PTR start, const char *scan)
 				break;
 		case STAR:  /* zero or more characters */
 				count = *scan++;
-				if (B(P_IC) && smode == ASCII)	test = toupper(*start);
+				if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 					else 						test = *start;
 				if (count == 1) {	/* only one character, 0 - n times */
 					while(test == *scan) {
 						*act++ = *start++;
-						if (B(P_IC) && smode == ASCII)	test = toupper(*start);
+						if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 							else 						test = *start;
 					}
 					scan++;
@@ -94,13 +94,13 @@ bregexec(PTR start, const char *scan)
 							/* if (sbracket(test, scan, count)) return 0; */
 							if (sbracket(test, scan, count)) return nullptr;
 							*act++ = *start++;
-							if (B(P_IC) && smode == ASCII)	test = toupper(*start);
+							if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 								else 						test = *start;
 							}
 					} else {
 						while(!sbracket(test, scan, count)) {
 							*act++ = *start++;
-							if (B(P_IC) && smode == ASCII)	test = toupper(*start);
+							if (B(P_IC) && smode == ASCII)	test = std::toupper(*start);
 								else 						test = *start;
 						}
 						scan += count;
@@ -127,9 +127,9 @@ static int
 sbracket(int start, const char *scan, int count)
 {
 	if (*scan++ == '^') {
-		if (!memchr(scan, start, --count)) return 0;
+		if (!std::memchr(scan, start, --count)) return 0;
 	} else {
-		if (memchr(scan, start, --count)) return 0;
+		if (std::memchr(scan, start, --count)) return 0;
 	}
 	return 1;
 }
@@ -141,8 +141,8 @@ end_word(PTR start)
 	PTR	pos;
 
 	pos = start;
-	if (!isprint(*pos & 0xff)) return start;
-	while (isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
+	if (!std::isprint(*pos & 0xff)) return start;
+	while (std::isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
 	return --pos;
 }
 
@@ -158,11 +158,11 @@ wordsearch(PTR start, char mode)
 
 	pos = start + 1;
 	do {
-		while (isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
-		while (!isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
+		while (std::isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
+		while (!std::isprint(*pos & 0xff)) if (pos++ > maxpos) return start;
 		found = pos;
 		ccount = 0;
-		while (isprint(*pos & 0xff)) {
+		while (std::isprint(*pos & 0xff)) {
 			if (pos++ > maxpos) return start;
 			ccount++; }
 		if (ccount < P(P_WL)) continue;
@@ -190,11 +190,11 @@ backsearch(PTR start, char mode)
 		if (mode == 'B') {
 			while (*pos != '\0' && *pos != '\n') if (pos-- < mem) return start;
 		} else {
-			while (!isprint(*pos & 0xff))		if (pos-- < mem) return start;
+			while (!std::isprint(*pos & 0xff))		if (pos-- < mem) return start;
 		}
 		pos--;
 		ccount = 0;
-		while (isprint(*pos & 0xff)) {
+		while (std::isprint(*pos & 0xff)) {
 			if (pos-- < mem) return start;
 			ccount++; }
 		if (ccount >= P(P_WL)) 	return (pos + 1);
@@ -286,11 +286,11 @@ do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 		return -1;
 	}
 	if (delim != '\0') {
-		if (strchr(cmd, 'g')) global = true;
-		if (strchr(cmd, 'c')) conf = true;
+		if (std::strchr(cmd, 'g')) global = true;
+		if (std::strchr(cmd, 'c')) conf = true;
 	}
-	if ((strchr("\\#", ch) && loc == ASCII)
-		|| (strchr("/?", ch) && loc == HEX)) {
+	if ((std::strchr("\\#", ch) && loc == ASCII)
+		|| (std::strchr("/?", ch) && loc == HEX)) {
 				toggle();
 	}
 	startpos--;
@@ -299,7 +299,7 @@ do_substitution(int delim, const char *line, PTR startpos, PTR endpos)
 
 	if (global) {
 		if ((undo_count = alloc_buf(endpos - startpos, &undo_buf))) {
-			memcpy(undo_buf, startpos + 1, undo_count);
+			std::memcpy(undo_buf, startpos + 1, undo_count);
 		}
 		undo_start = startpos + 1;
 		edits = U_EDIT;
@@ -336,12 +336,12 @@ AGAIN:
 		current_start = pagepos + y * Anzahl + xpos();
 		if (!global) {
 			if ((undo_count = alloc_buf(pat_len, &undo_buf))) {
-				memcpy(undo_buf, current_start, undo_count);
+				std::memcpy(undo_buf, current_start, undo_count);
 			}
 			undo_start = current_start;
 			edits = U_EDIT;
 		}
-		memcpy(current_start, repl_pat, pat_len);
+		std::memcpy(current_start, repl_pat, pat_len);
 SKIP:
 		if (global)  {
 			startpos = found + pat_len - 1;
@@ -376,11 +376,11 @@ searching(int ch, const char *line, PTR startpos, PTR endpos, int flag)
 	ignore_case = (B(P_IC));
 	magic = B(P_MA);
 	start_addr--;
-	if ((strchr("\\#", ch) && loc == ASCII)
-		|| (strchr("/?", ch) && loc == HEX)) {
+	if ((std::strchr("\\#", ch) && loc == ASCII)
+		|| (std::strchr("/?", ch) && loc == HEX)) {
 				toggle();
 	}
-	if (!strchr("Nn", ch)) {
+	if (!std::strchr("Nn", ch)) {
 		m[0] = ch;
 		m[1] = '\0';
 		switch (ch) {
@@ -480,16 +480,16 @@ fsearch_end(PTR start, PTR end, const char *smem, PTR *s_end)
 {
 	PTR	spos;
 
-	signal(SIGINT, jmpproc);
+	std::signal(SIGINT, jmpproc);
 	for (spos = start; spos <= end; spos++) {
 		/* if (bregexec(spos, smem)) { */
 		if (*s_end = bregexec(spos, smem)) {
-			signal(SIGINT, SIG_IGN);
+			std::signal(SIGINT, SIG_IGN);
 			*s_end++;
 			return(spos);
 		}
 	}
-	signal(SIGINT, SIG_IGN);
+	std::signal(SIGINT, SIG_IGN);
 	return(nullptr);
 }
 
@@ -507,14 +507,14 @@ rsearch(PTR start, PTR end, const char *smem)
 {
 	PTR	spos;
 
-	signal(SIGINT, jmpproc);
+	std::signal(SIGINT, jmpproc);
 	for (spos = start; spos >= end; spos--) {
 		if (bregexec(spos, smem)) {
-			signal(SIGINT, SIG_IGN);
+			std::signal(SIGINT, SIG_IGN);
 			return(spos);
 		}
 	}
-	signal(SIGINT, SIG_IGN);
+	std::signal(SIGINT, SIG_IGN);
 	return(nullptr);
 }
 
@@ -533,7 +533,7 @@ calc_addr(char **pointer, PTR def_addr)
 	addr = def_addr;
 	SKIP_WHITE
 	if (*cmd >= '1' && *cmd <= '9')  {
-		addr = mem + strtoll(cmd, &cmd, 10) - P(P_OF);
+		addr = mem + std::strtoll(cmd, &cmd, 10) - P(P_OF);
 	} else {
 		ch = *cmd;
 		switch (ch) {
@@ -601,7 +601,7 @@ calc_addr(char **pointer, PTR def_addr)
 			addr = rsearch(maxpos - 1, mem, search_pat);
 			break;
 		case '0':
-			addr = mem + strtol(cmd, &cmd, 16) - P(P_OF);
+			addr = mem + std::strtol(cmd, &cmd, 16) - P(P_OF);
 			break;
 		}
 	}
@@ -610,11 +610,11 @@ calc_addr(char **pointer, PTR def_addr)
 		if (*cmd == '+') {
 			cmd++;
 			SKIP_WHITE
-			addr += strtoll(cmd, &cmd, 0);
+			addr += std::strtoll(cmd, &cmd, 0);
 		} else {
 			cmd++;
 			SKIP_WHITE
-			addr -= strtoll(cmd, &cmd, 0);
+			addr -= std::strtoll(cmd, &cmd, 0);
 		}
 		SKIP_WHITE
 	}

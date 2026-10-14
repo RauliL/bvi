@@ -70,7 +70,7 @@ ascii_comp(char *smem, const char *pattern)
 			}
 		}
 		if (bracket) {
-			if (!(end = strchr(poi, ']'))) {
+			if (!(end = std::strchr(poi, ']'))) {
 				emsg("Missing ]");
 				return 1; }
 			poi++;
@@ -94,8 +94,8 @@ ascii_comp(char *smem, const char *pattern)
 			while (end > poi) {
 				if (*poi == '-') {
 					if (ignore_case) {
-						cc = toupper(*(poi - 1));
-						cc1 = toupper(*(poi + 1));
+						cc = std::toupper(*(poi - 1));
+						cc1 = std::toupper(*(poi + 1));
 					} else {
 						cc = *(poi - 1);
 						cc1 = *(poi + 1);
@@ -108,7 +108,7 @@ ascii_comp(char *smem, const char *pattern)
 				} else {
 					count++;
 					if (ignore_case)
-						*comp++ = toupper(*poi++);
+						*comp++ = std::toupper(*poi++);
 					else
 						*comp++ = *poi++;
 				}
@@ -146,7 +146,7 @@ ascii_comp(char *smem, const char *pattern)
 			} else {
 				*comp++ = 1;
 				if (ignore_case)
-					*comp++ = toupper(*poi++);
+					*comp++ = std::toupper(*poi++);
 				else
 					*comp++ = *poi++;
 			}
@@ -181,7 +181,7 @@ hex_comp(char *smem, const char *pattern)
 	while (*poi != END) {
 		while (*poi == ' ' || *poi == '\t') poi++;
 		if (*poi == '[') {
-			if (!(end = strchr(poi, ']'))) {
+			if (!(end = std::strchr(poi, ']'))) {
 				emsg("Missing ]");
 				return 1; }
 			poi++;
@@ -221,18 +221,18 @@ hex_comp(char *smem, const char *pattern)
 			if (*poi == '*') poi++;
 		} else if (*poi == '"') {
 			poi++;
-			if (!(end = strchr(poi, '"'))) {
+			if (!(end = std::strchr(poi, '"'))) {
 				/*
 				emsg("Missing '\"'");
 				return 1;
 				*/
-				end = poi + strlen(poi);
+				end = poi + std::strlen(poi);
 				}
 			while (end > poi) {
 				*comp++ = 1;
 				*comp++ = 1;
 				if (ignore_case)
-					*comp++ = toupper(*poi++);
+					*comp++ = std::toupper(*poi++);
 				else
 					*comp++ = *poi++;
 			}
@@ -264,12 +264,12 @@ hexchar()
 	int		nr;
 	char	tmpbuf[3];
 
-	if (isxdigit(*poi)) {
+	if (std::isxdigit(*poi)) {
 		tmpbuf[0] = *poi++;
 		tmpbuf[1] = '\0';
-		if (isxdigit(*poi)) tmpbuf[1] = *poi++;
+		if (std::isxdigit(*poi)) tmpbuf[1] = *poi++;
 		tmpbuf[2] = '\0';
-		sscanf(tmpbuf, "%2x", &nr);
+		std::sscanf(tmpbuf, "%2x", &nr);
         while (*poi == ' ' || *poi == '\t') poi++;
 		return nr;
 	} else {

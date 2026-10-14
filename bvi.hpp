@@ -108,7 +108,7 @@ using PTR = char *;
 #define MAXCMD	255
 #define BUFFER	1024
 
-#define SKIP_WHITE  while(*cmd!='\0'&&isspace(*cmd))cmd++;
+#define SKIP_WHITE  while(*cmd!='\0'&&std::isspace(static_cast<unsigned char>(*cmd)))cmd++;
 
 enum block_datum {
     BLOCK_BEGIN = 1,

@@ -138,7 +138,7 @@ edit(int mode)
 			continue;
 		}
 		if (loc == HEX) {
-			if (isxdigit(ch)) {
+			if (std::isxdigit(ch)) {
 				mvaddch(y, x + 1, ' ');
 				mvaddch(y, x, ch);
 				do {
@@ -149,7 +149,7 @@ edit(int mode)
 						cur_back();
 						goto escape;
 					}
-					if (!isxdigit(ch1)) {
+					if (!std::isxdigit(ch1)) {
 						beep();
 						ch1 = -1;
 					}
@@ -157,8 +157,8 @@ edit(int mode)
 				rep_buf.push_back(static_cast<char>(ch1));
 				len = rep_buf.size();
 				mvaddch(y, x + 1, ch1);
-				sprintf(tmpbuf, "%c%c", ch, ch1);
-				sscanf(tmpbuf, "%2x", &ch);
+				std::sprintf(tmpbuf, "%c%c", ch, ch1);
+				std::sscanf(tmpbuf, "%2x", &ch);
 			} else {
 				beep();
 				rep_buf.pop_back();
@@ -166,7 +166,7 @@ edit(int mode)
 				goto wrong;
 			}
 		} else {			/*** ASCII - Bereich ***/
-			if (isprint(ch)) {
+			if (std::isprint(ch)) {
 				mvaddch(y, x, ch);
 			} else {
 				beep();
@@ -175,7 +175,7 @@ edit(int mode)
 		}
 		curpos = current++;
 		if (mode == 'i' || mode == 'a') {
-			memmove(current, curpos, maxpos - curpos);
+			std::memmove(current, curpos, maxpos - curpos);
 		}
 		if (mode == 'A' || mode == 'i' || mode == 'a') {
 			maxpos++;
@@ -232,7 +232,7 @@ wrong:
 			}
 
 			if (mode == 'i' || mode == 'a') {
-				memmove(current + psize, current, maxpos - curpos);
+				std::memmove(current + psize, current, maxpos - curpos);
 			}
 
 			/* NEU
@@ -243,7 +243,7 @@ wrong:
 				memcpy(undo_pos + 1L, undo_pos - count + 1L, count);
 				undo_pos += count;
 				*/
-				memcpy(curpos + 1L, curpos - count + 1L, count);
+				std::memcpy(curpos + 1L, curpos - count + 1L, count);
 				curpos += count;
 			}
 			filesize += psize;
@@ -258,9 +258,9 @@ wrong:
 			if (current + count * (precount - 1) > maxpos) break;
 			psize = count;
 			while (--precount) {
-				memcpy(undo_buf + psize, curpos + 1L, count);
+				std::memcpy(undo_buf + psize, curpos + 1L, count);
 				psize += count;
-				memcpy(curpos + 1L, curpos - count + 1L, count);
+				std::memcpy(curpos + 1L, curpos - count + 1L, count);
 				curpos += count;
 			}
 			count = psize;
@@ -473,7 +473,7 @@ statpos()
 	}
 	Char1 = *(mem + bytepos);
 
-	if (isprint(Char1)) {
+	if (std::isprint(Char1)) {
 		str = std::format("'{}'", static_cast<char>(Char1));
 	} else if (Char1 < 32) {
 		str = B(P_US) ? contru[Char1] : contrd[Char1];
@@ -514,10 +514,10 @@ printline(PTR mempos, int scpos)
 	char		asc[MAXCMD+1];
 
 	if (mempos > maxpos) {
-		strcpy(linbuf, "~         ");
+		std::strcpy(linbuf, "~         ");
 	} else {
 
-		sprintf(linbuf, addr_form, (long long)(mempos - mem + P(P_OF)));
+		std::sprintf(linbuf, addr_form, (long long)(mempos - mem + P(P_OF)));
 		*asc = '\0';
 	}
 	mvaddstr(scpos, mv_pos, linbuf);
@@ -564,14 +564,14 @@ printline(PTR mempos, int scpos)
 		    }
 		}
 		if (mempos + print_pos >= maxpos) {
-			sprintf(tmpbuf, "   ");
+			std::sprintf(tmpbuf, "   ");
 			cur_ch = ' ';
 		} else {
 			cur_ch = *(mempos + print_pos);
-			sprintf(tmpbuf, "%02X ", cur_ch);
+			std::sprintf(tmpbuf, "%02X ", cur_ch);
 		}
-		strcat(linbuf, tmpbuf);
-		if (isprint(cur_ch))
+		std::strcat(linbuf, tmpbuf);
+		if (std::isprint(cur_ch))
 			*(asc + print_pos) = cur_ch;
 		else
 			*(asc + print_pos) = '.';
@@ -751,8 +751,8 @@ quit()
 {
 	move(maxy, 0);
 	endwin();
-	printf("\nbvi version %s %s\n", VERSION, copyright);
-	exit(0);
+	std::printf("\nbvi version %s %s\n", VERSION, copyright);
+	std::exit(0);
 }
 
 
@@ -778,14 +778,14 @@ stuffin(std::string_view s)
 {
     if (getcnext == nullptr) {
        if (s.size() >= BUFFER) s = s.substr(0, BUFFER - 1);
-       memcpy(getcbuff, s.data(), s.size());
+       std::memcpy(getcbuff, s.data(), s.size());
        getcbuff[s.size()] = '\0';
        getcnext = getcbuff;
     } else {
-       size_t have = strlen(getcbuff);
+       size_t have = std::strlen(getcbuff);
        size_t room = (have < BUFFER - 1) ? (BUFFER - 1 - have) : 0;
        size_t n = std::min(room, s.size());
-       memcpy(getcbuff + have, s.data(), n);
+       std::memcpy(getcbuff + have, s.data(), n);
        getcbuff[have + n] = '\0';
     }
 }
@@ -803,9 +803,9 @@ do_back(off_t n, PTR start)
     yanked = alloc_buf(n, &yank_buf);
 	edits = U_BACK;
 	undo_start = start - n;
-	memcpy(undo_buf, start - undo_count, undo_count);
-	memcpy(yank_buf, start - undo_count, undo_count);
-	memmove(start - undo_count, start, maxpos - start);
+	std::memcpy(undo_buf, start - undo_count, undo_count);
+	std::memcpy(yank_buf, start - undo_count, undo_count);
+	std::memmove(start - undo_count, start, maxpos - start);
 	filesize -= undo_count;
 	maxpos -= undo_count;
 	setpage(start - undo_count);
@@ -825,9 +825,9 @@ do_delete(off_t n, PTR start)
 	yanked = alloc_buf(n, &yank_buf);
 	edits = U_DELETE;
 	undo_start = start;
-	memcpy(undo_buf, start, undo_count);
-	memcpy(yank_buf, start, undo_count);
-	memmove(start, start + undo_count, maxpos - (start + undo_count));
+	std::memcpy(undo_buf, start, undo_count);
+	std::memcpy(yank_buf, start, undo_count);
+	std::memmove(start, start + undo_count, maxpos - (start + undo_count));
 	filesize -= undo_count;
 	maxpos -= undo_count;
 	if (start == maxpos && start > mem) {
@@ -858,16 +858,16 @@ do_ins_chg(PTR start, const char *arg, int mode)
 		beep();
 		return;
 	}
-	len = strlen(arg);
-	if (!strncmp("ascii", arg, len) && CMDLNG(5, 1)) {
+	len = std::strlen(arg);
+	if (!std::strncmp("ascii", arg, len) && CMDLNG(5, 1)) {
 		base = 1;
-	} else if (!strncmp("binary", arg, len) && CMDLNG(6, 1)) {
+	} else if (!std::strncmp("binary", arg, len) && CMDLNG(6, 1)) {
 		base = 2;
-	} else if (!strncmp("octal", arg, len) && CMDLNG(5, 1)) {
+	} else if (!std::strncmp("octal", arg, len) && CMDLNG(5, 1)) {
 		base = 8;
-	} else if (!strncmp("decimal", arg, len) && CMDLNG(7, 1)) {
+	} else if (!std::strncmp("decimal", arg, len) && CMDLNG(7, 1)) {
 		base = 10;
-	} else if (!strncmp("hexadecimal", arg, len) && CMDLNG(11, 1)) {
+	} else if (!std::strncmp("hexadecimal", arg, len) && CMDLNG(11, 1)) {
 		base = 16;
 	} else {
 		emsg("No such option");
@@ -899,11 +899,11 @@ do_ins_chg(PTR start, const char *arg, int mode)
 				*(tempbuf + count++) = val;
 			}
 		} else {
-			while (!cmdstr.empty() && isspace(static_cast<unsigned char>(cmdstr.back())))
+			while (!cmdstr.empty() && std::isspace(static_cast<unsigned char>(cmdstr.back())))
 				cmdstr.pop_back();
 			poi = cmdstr.data();
 			while (*poi != '\0') {
-				val = strtol(poi, &epoi, base);
+				val = std::strtol(poi, &epoi, base);
 				if (val > 255 || val < 0 || poi == epoi) {
 					repaint();
 					emsg("Invalid value");
@@ -936,12 +936,12 @@ do_ins_chg(PTR start, const char *arg, int mode)
 		    goto mfree;
 		}
 		do_append((off_t)count, tempbuf);
-		memcpy(undo_buf, tempbuf, count);
+		std::memcpy(undo_buf, tempbuf, count);
 		repaint();
 		break;
 	}
 mfree:
-	free(tempbuf);
+	std::free(tempbuf);
 }
 
 

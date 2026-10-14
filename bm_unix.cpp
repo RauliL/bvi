@@ -55,7 +55,7 @@ int     dlines;
 
 int
 putchr(int ch)
-{return putchar(ch);}
+{return std::putchar(ch);}
 
 
 void
@@ -82,8 +82,8 @@ initterm()
 		tcsetattr(fileno(stdin), TCSADRAIN, &nstate);
 	}
 
-	if ((term = getenv("TERM")) == 0 || tgetent(buf, term) <= 0) {
-		printf("Dumb terminal\n");
+	if ((term = std::getenv("TERM")) == 0 || tgetent(buf, term) <= 0) {
+		std::printf("Dumb terminal\n");
 		maxx = 80;
 		maxy = 24;
 	} else {
@@ -128,8 +128,8 @@ void
 sig(int sig)
 {
 	reset_tty();
-	printf("\r\n");
-	exit(0);
+	std::printf("\r\n");
+	std::exit(0);
 }
 
 
@@ -143,10 +143,10 @@ doshell(const char *cmd)
 	const char	*shell;
 	std::string	cline;
 
-	printf("\n");
+	std::printf("\n");
 
-	if ((shell = getenv("SHELL")) == nullptr) shell = "sh";
-	else if(strrchr(shell,'/')) shell = strrchr(shell,'/')+1;
+	if ((shell = std::getenv("SHELL")) == nullptr) shell = "sh";
+	else if(std::strrchr(shell,'/')) shell = std::strrchr(shell,'/')+1;
 
 	if (cmd[0] == '\0') {
 		cline = std::format("{} -i", shell);
@@ -155,9 +155,9 @@ doshell(const char *cmd)
 	}
 
 	reset_tty();
-	ret = system(cline.c_str());
+	ret = std::system(cline.c_str());
 	set_tty();
-	printf("\r");
+	std::printf("\r");
 	home();
 	fseeko(curr_file, screen_home, SEEK_SET);
 	bytepos = screen_home;
@@ -211,7 +211,7 @@ vgetc()
     errno = 0;
     if (read(2, &cha, 1) <= 0) {
         if (errno != EINTR)
-            exit(2);
+            std::exit(2);
     }
     return (cha);
 }

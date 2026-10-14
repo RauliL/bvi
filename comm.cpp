@@ -107,11 +107,11 @@ docmdline(const char *cmdline)
 
 	if (*cmdline == '\0') return;
 	if (*cmdline == '"') return; 	/** comment **/
-	if (strlen(cmdline) > CMDSZ - 2) {
+	if (std::strlen(cmdline) > CMDSZ - 2) {
 		emsg("Command too long");
 		return;
 	}
-	strcpy(buff, cmdline);
+	std::strcpy(buff, cmdline);
 	cmd = buff;
 
 /* With no address given, we start at the beginning of the file and
@@ -165,7 +165,7 @@ docmdline(const char *cmdline)
 		setpage(end_addr);
 		return;
 	}
-	strcpy(cmdbuf, cmd);	/* save the unmodified command */
+	std::strcpy(cmdbuf, cmd);	/* save the unmodified command */
 
 	if (*cmd == '!') {
 		if (*(cmdbuf + 1) == '\0') {
@@ -174,7 +174,7 @@ docmdline(const char *cmdline)
 			}
 		if (*(cmdbuf + 1) == '!') {
 			if (!oldbuf.empty()) {
-				strncpy(cmdbuf + 1, oldbuf.c_str(), CMDSZ - 2);
+				std::strncpy(cmdbuf + 1, oldbuf.c_str(), CMDSZ - 2);
 				cmdbuf[CMDSZ - 1] = '\0';
 				msg(oldbuf.c_str());
 			} else {
@@ -190,9 +190,9 @@ docmdline(const char *cmdline)
 		if (edits) msg("[No write]|[No write since last change]");
 		savetty();
 		endwin();
-		ret = system(cmdbuf + 1);
-		fprintf(stderr, "[Hit return to continue]");
-		getchar();
+		ret = std::system(cmdbuf + 1);
+		std::fprintf(stderr, "[Hit return to continue]");
+		std::getchar();
 		doupdate();
 		repaint();
 		clearstr();
@@ -212,10 +212,10 @@ docmdline(const char *cmdline)
 		force = true;
 		cmd++;
 	}
-	len = strlen(cmdname);
+	len = std::strlen(cmdname);
 	SKIP_WHITE
 
-	if (!strncmp("substitute", cmdname, len) && CMDLNG(10,1)) {
+	if (!std::strncmp("substitute", cmdname, len) && CMDLNG(10,1)) {
 		repl_count = do_substitution(*cmd, cmd + 1, start_addr, end_addr);
 		if (repl_count == -1) {
 			emsg("No previous substitute re|No previous substitute regular expression");
@@ -228,7 +228,7 @@ docmdline(const char *cmdline)
 			msg(std::format("{} subs|{} substitutions", repl_count, repl_count).c_str());
 		}
 		return;
-	} else if (!strncmp("global", cmdname, len) && CMDLNG(6,1)) {
+	} else if (!std::strncmp("global", cmdname, len) && CMDLNG(6,1)) {
 		current = start_addr - 1;
 		repl_count = 0;
 		addch('\n');
@@ -257,7 +257,7 @@ docmdline(const char *cmdline)
         return;
 	}
 
-	if ((!strncmp("write", cmdname, len) && CMDLNG(5,1)) || !strcmp("wq", cmdname)) {
+	if ((!std::strncmp("write", cmdname, len) && CMDLNG(5,1)) || !std::strcmp("wq", cmdname)) {
 		if (*cmd == '>') {
 			if (*(++cmd) == '>') {
 				cmd++;
@@ -275,15 +275,15 @@ docmdline(const char *cmdline)
 		SKIP_WHITE
 
 		c_argc = 0;
-		if ((c_argv[c_argc] = strtok(cmd, " \t")) != nullptr) c_argc++;
-		while ((c_argv[c_argc] = strtok(nullptr, " \t")) != nullptr) c_argc++;
+		if ((c_argv[c_argc] = std::strtok(cmd, " \t")) != nullptr) c_argc++;
+		while ((c_argv[c_argc] = std::strtok(nullptr, " \t")) != nullptr) c_argc++;
 
 		if (c_argc > 1) { 
 			emsg(ambigous);
 			return; }
 		if (c_argc == 1) {
 		    /* change '%' to Filename */
-		    while ((p = strchr(c_argv[0], '%')) != nullptr && *(p-1) != '\\') {
+		    while ((p = std::strchr(c_argv[0], '%')) != nullptr && *(p-1) != '\\') {
 		        if (name == nullptr) {
 		            emsg("No filename@to substitute for %");
 		            return;
@@ -329,17 +329,17 @@ docmdline(const char *cmdline)
 				}
 			}
 		}
-		if (!strcmp("wq", cmdname)) {
+		if (!std::strcmp("wq", cmdname)) {
 			if (ok) quit();
 		}
 		return;
 	}
 
 	c_argc = 0;
-	cmd = strtok(cmdbuf, " \t");
-	while ((c_argv[c_argc] = strtok(nullptr, " \t")) != nullptr) c_argc++;
+	cmd = std::strtok(cmdbuf, " \t");
+	while ((c_argv[c_argc] = std::strtok(nullptr, " \t")) != nullptr) c_argc++;
 
-	if (!strncmp("set", cmdname, len) && CMDLNG(3, 2)) {
+	if (!std::strncmp("set", cmdname, len) && CMDLNG(3, 2)) {
 		if (chk_comm(NO_ADDR)) return;
 		if (c_argc == 0) {
 			doset(nullptr);
@@ -348,7 +348,7 @@ docmdline(const char *cmdline)
 				if (doset(c_argv[n])) return;
 			}
 		}
-	} else if (!strncmp("args", cmdname, len) && CMDLNG(4, 2)) {
+	} else if (!std::strncmp("args", cmdname, len) && CMDLNG(4, 2)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		std::string args;
 		for (n = 0; n < numfiles; n++) {
@@ -358,11 +358,11 @@ docmdline(const char *cmdline)
 			args += ' ';
 		}
 		msg(args.c_str());
-	} else if (!strncmp("source", cmdname, len) && CMDLNG(6, 2)) {
+	} else if (!std::strncmp("source", cmdname, len) && CMDLNG(6, 2)) {
 		if (chk_comm(NO_ADDR|ONE_FILE)) return;
 		if (read_rc(c_argv[0])) sysemsg(c_argv[0]);
 		refresh();
-	} else if (!strncmp("cd", cmdname, len) && CMDLNG(2, 2)) {
+	} else if (!std::strncmp("cd", cmdname, len) && CMDLNG(2, 2)) {
 		if (chk_comm(NO_ADDR|ONE_FILE)) return;
 		if (!force) {
 			if (edits) {
@@ -380,7 +380,7 @@ docmdline(const char *cmdline)
 			c_argv[0] = rootdir;
 		}
 		if (chdir(c_argv[0])) sysemsg(c_argv[0]);
-	} else if (!strncmp("edit", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("edit", cmdname, len) && CMDLNG(4, 1)) {
 /*
  * The command ":e#" gets expanded to something like ":efile", so
  * detect that case here.
@@ -394,11 +394,11 @@ docmdline(const char *cmdline)
 		}
 		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
 		doecmd(c_argv[0], force);
-	} else if (!strncmp("file", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("file", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
 		if (c_argc != 0) name = strdup(c_argv[0]);
 		fileinfo(name);
-	} else if (!strncmp("read", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("read", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|MAX_ONE_FILE)) return;
 		/* read reads a file at EOF */
 		if (c_argc == 0) c_argv[0] = name;
@@ -407,10 +407,10 @@ docmdline(const char *cmdline)
 			undosize = filesize;
 			repaint();
 		}
-	} else if (!strncmp("xit", cmdname, len) && CMDLNG(3, 1)) {
+	} else if (!std::strncmp("xit", cmdname, len) && CMDLNG(3, 1)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		do_exit();
-	} else if (!strncmp("next", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("next", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		if (!force) {
 			if (edits) {
@@ -430,7 +430,7 @@ docmdline(const char *cmdline)
 			stuffin("\n");
 		} else
 			emsg("No more files@to edit!");
-	} else if (!strncmp("rewind", cmdname, len) && CMDLNG(6, 3)) {
+	} else if (!std::strncmp("rewind", cmdname, len) && CMDLNG(6, 3)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		if (numfiles <= 1)		/* nothing to rewind */
 			return;
@@ -450,40 +450,40 @@ docmdline(const char *cmdline)
 			else	stuffin(":e ");
 		stuffin(files[0]);
 		stuffin("\n");
-	} else if (!strncmp("append", cmdname, len) && CMDLNG(6, 1)) {
+	} else if (!std::strncmp("append", cmdname, len) && CMDLNG(6, 1)) {
 		if (chk_comm(NO_ADDR|MAX_ONE_ARG)) return;
 		do_ins_chg(start_addr, c_argc == 1 ? c_argv[0] : "a", U_APPEND);
-	} else if (!strncmp("change", cmdname, len) && CMDLNG(6, 1)) {
+	} else if (!std::strncmp("change", cmdname, len) && CMDLNG(6, 1)) {
 		if (chk_comm(MAX_ONE_ARG)) return;
 		if (!addr_flag) start_addr = current;
 		do_ins_chg(start_addr, c_argc == 1 ? c_argv[0] : "a", U_EDIT);
-	} else if (!strncmp("mark", cmdname, len) && CMDLNG(4, 2)) {
+	} else if (!std::strncmp("mark", cmdname, len) && CMDLNG(4, 2)) {
 		if (c_argc == 0) { emsg("Mark what?"); return; }
-		if (c_argc > 1 || (strlen(c_argv[0]) > 1)) { emsg(extra); return; }
+		if (c_argc > 1 || (std::strlen(c_argv[0]) > 1)) { emsg(extra); return; }
 		if (!addr_flag) start_addr = current;
 		do_mark(c_argv[0][0], start_addr);
-	} else if (!strncmp("yank", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("yank", cmdname, len) && CMDLNG(4, 1)) {
 		if ((yanked = yd_addr()) == 0L) return;
 		if ((yanked = alloc_buf(yanked, &yank_buf)) == 0L) return;
-		memcpy(yank_buf, start_addr, yanked);
+		std::memcpy(yank_buf, start_addr, yanked);
 		msg(std::format("{} bytes", yanked).c_str());
-	} else if (!strncmp("overwrite", cmdname, len) && CMDLNG(9, 1)) {
+	} else if (!std::strncmp("overwrite", cmdname, len) && CMDLNG(9, 1)) {
 		if (chk_comm(NO_ARG)) return;
 		if (!addr_flag) start_addr = current;
 		do_over(start_addr, yanked, yank_buf);
-	} else if (!strncmp("undo", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("undo", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		do_undo();
-	} else if (!strncmp("version", cmdname, len) && CMDLNG(7, 2)) {
+	} else if (!std::strncmp("version", cmdname, len) && CMDLNG(7, 2)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		msg(std::format("bvi version {} {}", VERSION, copyright).c_str());
-	} else if (!strncmp("shell", cmdname, len) && CMDLNG(5, 2)) {
+	} else if (!std::strncmp("shell", cmdname, len) && CMDLNG(5, 2)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		do_shell();
 		clear();
 		repaint();
 		clearstr();
-	} else if (!strncmp("quit", cmdname, len) && CMDLNG(4, 1)) {
+	} else if (!std::strncmp("quit", cmdname, len) && CMDLNG(4, 1)) {
 		if (chk_comm(NO_ADDR|NO_ARG)) return;
 		if (!force) {
 			if (edits) {
@@ -495,66 +495,66 @@ docmdline(const char *cmdline)
 					quit();
 			}
 		} else quit();
-	} else if (!strncmp("sleft", cmdname, len) && CMDLNG(5, 2)) {
+	} else if (!std::strncmp("sleft", cmdname, len) && CMDLNG(5, 2)) {
 		if (c_argc == 1) {
 			do_logic(LSHIFT, c_argv[0]);
 		} else if (c_argc == 0) {
 			do_logic(LSHIFT, "1");
     	} else { emsg(ambvalue); return; }
-	} else if (!strncmp("sright", cmdname, len) && CMDLNG(6, 2)) {
+	} else if (!std::strncmp("sright", cmdname, len) && CMDLNG(6, 2)) {
 		if (c_argc == 1) {
 			do_logic(RSHIFT, c_argv[0]);
 		} else if (c_argc == 0) {
 			do_logic(RSHIFT, "1");
     	} else { emsg(ambvalue); return; }
-	} else if (!strncmp("rleft", cmdname, len) && CMDLNG(5, 2)) {
+	} else if (!std::strncmp("rleft", cmdname, len) && CMDLNG(5, 2)) {
 		if (c_argc == 1) {
 			do_logic(LROTATE, c_argv[0]);
 		} else if (c_argc == 0) {
 			do_logic(LROTATE, "1");
     	} else { emsg(ambvalue); return; }
-	} else if (!strncmp("rright", cmdname, len) && CMDLNG(6, 2)) {
+	} else if (!std::strncmp("rright", cmdname, len) && CMDLNG(6, 2)) {
 		if (c_argc == 1) {
 			do_logic(RROTATE, c_argv[0]);
 		} else if (c_argc == 0) {
 			do_logic(RROTATE, "1");
     	} else { emsg(ambvalue); return; }
-	} else if (!strcmp("and", cmdname)) {
+	} else if (!std::strcmp("and", cmdname)) {
 		if (c_argc == 1) {
 			do_logic(AND, c_argv[0]);
 		} else if (c_argc == 0) {
 			emsg(noval); return;
     	} else { emsg(ambvalue); return; }
-	} else if (!strcmp("or", cmdname)) {
+	} else if (!std::strcmp("or", cmdname)) {
 		if (c_argc == 1) {
 			do_logic(OR, c_argv[0]);
 		} else if (c_argc == 0) {
 			emsg(noval); return;
     	} else { emsg(ambvalue); return; }
-	} else if (!strcmp("xor", cmdname)) {
+	} else if (!std::strcmp("xor", cmdname)) {
 		if (c_argc == 1) {
 			do_logic(XOR, c_argv[0]);
 		} else if (c_argc == 0) {
 			emsg(noval); return;
     	} else { emsg(ambvalue); return; }
-	} else if (!strcmp("neg", cmdname)) {
+	} else if (!std::strcmp("neg", cmdname)) {
 		if (c_argc != 0) { emsg(extra); return; }
 		do_logic(NEG, "255");
-	} else if (!strcmp("not", cmdname)) {
+	} else if (!std::strcmp("not", cmdname)) {
 		if (c_argc != 0) { emsg(extra); return; }
 		do_logic(NOT, "255");
 	} else {
 		auto errmsg = std::format("What?|{}: Not an editor command", cmd);
 		if B(P_MM) {
-			if (!strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
+			if (!std::strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
 				if ((undo_count = yd_addr()) == 0L) return;
 				do_delete(undo_count, start_addr);
 				msg(std::format("{} bytes", undo_count).c_str());
-			} else if (!strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
+			} else if (!std::strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
 				if (chk_comm(MAX_ONE_ARG)) return;
 				if (!addr_flag) start_addr = current;
 				do_ins_chg(start_addr - 1, c_argc == 1 ? c_argv[0] : "a", U_INSERT);
-			} else if (!strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
+			} else if (!std::strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
 				if (chk_comm(NO_ARG)) return;
 				if (!addr_flag) start_addr = current;
 				do_put(start_addr, yanked, yank_buf);
@@ -562,11 +562,11 @@ docmdline(const char *cmdline)
 				emsg(errmsg.c_str());
 			}
 		} else {
-			if (!strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
+			if (!std::strncmp("delete", cmdname, len) && CMDLNG(6, 1)) {
 				movebyte();
-			} else if (!strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
+			} else if (!std::strncmp("insert", cmdname, len) && CMDLNG(6, 1)) {
 				movebyte();
-			} else if (!strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
+			} else if (!std::strncmp("put", cmdname, len) && CMDLNG(3, 2)) {
 				movebyte();
 			} else {
 				emsg(errmsg.c_str());
@@ -591,7 +591,7 @@ yd_addr()
 				break;
 		}
 	} else if (c_argc == 1) {
-		count = atoi(c_argv[0]);
+		count = std::atoi(c_argv[0]);
 		switch (addr_flag) {
 		case 0: start_addr = current;
 		case 1:	end_addr = start_addr + count - 1;
@@ -647,11 +647,11 @@ doecmd(const char *arg, bool force)
 		return false;
 	}
 	if (arg != nullptr) {
-		if (name != nullptr && !strcmp(arg, name)) {
+		if (name != nullptr && !std::strcmp(arg, name)) {
 			if (!edits || (edits && !force))
 				return true;
 		}
-		if (name != nullptr && !strcmp(arg, "#")) {
+		if (name != nullptr && !std::strcmp(arg, "#")) {
 			if (altfile == nullptr) {
 				emsg("No alternate filename@to substitute for #");
 				return false;
@@ -661,7 +661,7 @@ doecmd(const char *arg, bool force)
 			altfile = tmp;
 		} else {
 			if (altfile) {
-				free(altfile);
+				std::free(altfile);
 			}
 			altfile = name;
 			name = strdup(arg);
@@ -720,7 +720,7 @@ emsg(std::string_view s)
 void
 sysemsg(std::string_view s)
 {
-	emsg(std::format("{}: {}", s, strerror(errno)));
+	emsg(std::format("{}: {}", s, std::strerror(errno)));
 }
 
 
@@ -786,7 +786,7 @@ wait_return(bool flag)
 {
 	int	c;
 
-	signal(SIGINT, jmpproc);
+	std::signal(SIGINT, jmpproc);
 	clearstr();
 	attrset(A_REVERSE);
 	mvaddstr(maxy, 0, "[Hit return to continue]");
@@ -798,7 +798,7 @@ wait_return(bool flag)
 		repaint();
 	}
 	clearstr();
-	signal(SIGINT, SIG_IGN);
+	std::signal(SIGINT, SIG_IGN);
 	if (c != CR && c != NL && c != ' ' && c != ':' && c != KEY_ENTER) return true;
 	return false;
 }

@@ -32,7 +32,7 @@
  */
 
 #include <sys/types.h>
-#include <locale.h>
+#include <clocale>
 
 #include "bvi.hpp"
 #include "set.hpp"
@@ -105,11 +105,11 @@ void
 usage()
 {
 
-	fprintf(stderr, "Usage: %s [-R] [-c cmd | +cmd] [-f script]\n\
+	std::fprintf(stderr, "Usage: %s [-R] [-c cmd | +cmd] [-f script]\n\
 	   [-s skip] [-e end] [-n length] file ...\n\
 	   file offset/size: 10k, 20m, 1g, 0x1000 hex, 0200 octal\n", progname);
 
-	exit(1);
+	std::exit(1);
 }
 
 
@@ -126,12 +126,12 @@ main(int argc, char *argv[])
 
 
 
-	setlocale(LC_ALL, "");
-	poi = strrchr(argv[0], DELIM);
+	std::setlocale(LC_ALL, "");
+	poi = std::strrchr(argv[0], DELIM);
 
-	if (poi) strncpy(progname, ++poi, 7);
-		else strncpy(progname, argv[0], 7);
-	strtok(progname, ".");
+	if (poi) std::strncpy(progname, ++poi, 7);
+		else std::strncpy(progname, argv[0], 7);
+	std::strtok(progname, ".");
 
 	if (!strcasecmp(progname, "bview")) {
 		params[P_RO].changed = true;
@@ -185,7 +185,7 @@ main(int argc, char *argv[])
 					usage();
 				} else {
 					params[P_LI].changed = true;
-					P(P_LI) = atoi(argv[n] + 2);
+					P(P_LI) = std::atoi(argv[n] + 2);
 				}
 			} else usage();
 			n++;
@@ -234,16 +234,16 @@ main(int argc, char *argv[])
 		break;
 	case BLOCK_BEGIN|BLOCK_END|BLOCK_LEN:
 		if (block_end - block_begin != block_size + 1) {
-			fprintf(stderr, "Ambigous block data\n");
-			exit(1);
+			std::fprintf(stderr, "Ambigous block data\n");
+			std::exit(1);
 		}
 		break;
 	}
 	if (block_flag && !numfiles) {
-		fprintf(stderr, "Cannot read a range of a nonexisting file\n");
-		exit(1);
+		std::fprintf(stderr, "Cannot read a range of a nonexisting file\n");
+		std::exit(1);
 	}
-	if (numfiles > 1) fprintf(stderr, "%d files to edit\n", numfiles);
+	if (numfiles > 1) std::fprintf(stderr, "%d files to edit\n", numfiles);
 	curfile = 0;
 
 	/****** Initialisation of curses ******/
@@ -258,7 +258,7 @@ main(int argc, char *argv[])
 	cbreak();
 	noecho();
 
-	signal(SIGINT, SIG_IGN);
+	std::signal(SIGINT, SIG_IGN);
 	filesize = load(name);
 
 	bvi_init(argv[0]);
@@ -285,7 +285,7 @@ main(int argc, char *argv[])
 			if (numarr.size() < MAXCMD) numarr.push_back(static_cast<char>(ch));
 			ch = vgetc();
 		}
-		if (!numarr.empty()) precount = strtoll(numarr.c_str(), nullptr, 10);
+		if (!numarr.empty()) precount = std::strtoll(numarr.c_str(), nullptr, 10);
 			else precount = -1;
 		lflag = 0;
 		numarr.clear();
@@ -482,7 +482,7 @@ main(int argc, char *argv[])
 						inaddr = filesize + P(P_OF) - 1L;
 					} else {
 						off_t ltmp;
-						sscanf(cmdstr.c_str(), "%llx", (long long unsigned *)&ltmp);
+						std::sscanf(cmdstr.c_str(), "%llx", (long long unsigned *)&ltmp);
 						inaddr = ltmp;
 					}
 					if (inaddr < P(P_OF)) break;
@@ -581,12 +581,12 @@ main(int argc, char *argv[])
 						if ((yanked = alloc_buf((off_t)count, &yank_buf)) == 0L) {
 							break;
 						}
-						memcpy(yank_buf, current, yanked);
+						std::memcpy(yank_buf, current, yanked);
 					} else if (count < 0) {
 						if ((yanked = alloc_buf(-(off_t)count, &yank_buf)) == 0L) {
 							break;
 						}
-						memcpy(yank_buf, current, yanked);
+						std::memcpy(yank_buf, current, yanked);
 					} else {
 						break;
 					}
@@ -710,14 +710,14 @@ calc_size(const char *arg)
 	char	*poi;
 
 	errno = 0;
-	val = strtoll(arg, &poi, 0);
+	val = std::strtoll(arg, &poi, 0);
 	if (val < 0) {
-		fprintf(stderr, "negative begin/size/end not allowed\n");
+		std::fprintf(stderr, "negative begin/size/end not allowed\n");
 		usage();
 	}
 	if (poi == arg || errno != 0) {
 		/* cygwin gdb displays errno incorrectly as 0 */
-		fprintf(stderr, "invalid begin/size/end (hex nr 0x#, octal 0#)\n");
+		std::fprintf(stderr, "invalid begin/size/end (hex nr 0x#, octal 0#)\n");
 		usage();
 	}
 	switch (*poi) {
@@ -759,7 +759,7 @@ do_append(off_t count, const char *buf)
 	if (filesize + count > memsize) {
 		if (enlarge(count + 100L)) return 1;
 	}
-	memcpy(mem + filesize, buf, count);
+	std::memcpy(mem + filesize, buf, count);
 	undo_start = mem + filesize - 1L;
 	setpage(undo_start + count);
 	edits = U_APPEND;
@@ -781,11 +781,11 @@ do_tilde(off_t count)
 	}
 	if ((undo_count = alloc_buf(count, &undo_buf)) == 0L)
 		return;
-	memcpy(undo_buf, current, undo_count);
+	std::memcpy(undo_buf, current, undo_count);
 	while (count--) {
-		if (isupper((int)(*current))) *current = tolower((int)(*current));
-			else if (islower((int)(*current)))
-				*current = toupper((int)(*current));
+		if (std::isupper((int)(*current))) *current = std::tolower((int)(*current));
+			else if (std::islower((int)(*current)))
+				*current = std::toupper((int)(*current));
 		current++;
 		cur_forw(false);
 	}
@@ -835,8 +835,8 @@ do_undo()
 		case U_INSERT:
 			filesize -= undo_count;
 			maxpos -= undo_count;
-			memcpy(undo_buf, undo_start, undo_count);
-			memmove(undo_start, undo_start + undo_count,
+			std::memcpy(undo_buf, undo_start, undo_count);
+			std::memmove(undo_start, undo_start + undo_count,
 				maxpos - undo_start);
 			edits = U_DELETE;
 			break;
@@ -844,9 +844,9 @@ do_undo()
 		case U_DELETE:
 			filesize += undo_count;
 			maxpos += undo_count;
-			memmove(undo_start + undo_count, undo_start,
+			std::memmove(undo_start + undo_count, undo_start,
 				maxpos - undo_start);
-			memcpy(undo_start, undo_buf, undo_count);
+			std::memcpy(undo_start, undo_buf, undo_count);
 			edits = U_INSERT;
 			break;
 		}
@@ -870,8 +870,8 @@ do_over(PTR loc, off_t n, const char *buf)
 	if ((undo_count = alloc_buf(n, &undo_buf)) == 0L)
 		return;
 	undo_start = loc;
-	memcpy(undo_buf, loc, n);
-	memcpy(loc, buf, n);
+	std::memcpy(undo_buf, loc, n);
+	std::memcpy(loc, buf, n);
 	edits = U_EDIT;
 	setpage(loc + n - 1);
 	repaint();
@@ -898,8 +898,8 @@ do_put(PTR loc, off_t n, const char *buf)
 	edits = U_INSERT;
 	filesize += n;
 	maxpos += n;
-	memmove(undo_start + n, undo_start, maxpos - loc);
-	memcpy(undo_start, buf, n);
+	std::memmove(undo_start + n, undo_start, maxpos - loc);
+	std::memcpy(undo_start, buf, n);
 	setpage(loc + n);
 	repaint();
 }
@@ -912,8 +912,8 @@ jmpproc(int sig)
 	if (B(P_EB)) beep();
 	repaint();
 	clearstr();
-    signal(SIGINT, SIG_IGN);
-    longjmp(env, 0);
+    std::signal(SIGINT, SIG_IGN);
+    std::longjmp(env, 0);
 }
 
 
@@ -929,7 +929,7 @@ range(int ch)
 		numarr.push_back(static_cast<char>(ch1));
 		ch1 = vgetc();
 	}
-	if (!numarr.empty()) count = strtol(numarr.c_str(), nullptr, 10);
+	if (!numarr.empty()) count = std::strtol(numarr.c_str(), nullptr, 10);
 		else count = 1;
 	rep_buf = std::format("{}{}{}{}", precount, static_cast<char>(ch), numarr, static_cast<char>(ch1));
 	switch (ch1) {
@@ -1038,7 +1038,7 @@ set_window_size()
         /*  default is 8 + 2 blanks  */
         /* if block_begin has 8 hex digits or more */
         /* reserve 1 hex digit more than required  */
-        AnzAdd = snprintf(
+        AnzAdd = std::snprintf(
             tmp,
             sizeof(tmp),
             "%llX",
@@ -1052,8 +1052,8 @@ set_window_size()
         {
             AnzAdd = sizeof(block_begin) * 2;
         }
-        snprintf(addr_form, sizeof(addr_form), "%%0%dllX  ", AnzAdd);
-        AnzAdd = snprintf(tmp, sizeof(tmp), addr_form, block_begin);
+        std::snprintf(addr_form, sizeof(addr_form), "%%0%dllX  ", AnzAdd);
+        AnzAdd = std::snprintf(tmp, sizeof(tmp), addr_form, block_begin);
     }
 
 	Anzahl = ((COLS - AnzAdd - 1) / 16) * 4;

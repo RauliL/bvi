@@ -72,24 +72,24 @@ doset(const char *arg)		/* parameter string */
 		showparms(false);
 		return 0;
 	}
-	if (!strcmp(arg, "all")) {
+	if (!std::strcmp(arg, "all")) {
 		showparms(true);
 		return 0;	}
-	if (!strncmp(arg, "no", 2)) {
+	if (!std::strncmp(arg, "no", 2)) {
 		state = false;
 		arg += 2; }
 
 	for (i = 0; i < static_cast<int>(params.size()); i++) {
 		s = params[i].fullname;
-		if (strncmp(arg, s, strlen(s)) == 0)	/* matched full name */
+		if (std::strncmp(arg, s, std::strlen(s)) == 0)	/* matched full name */
 			break;
 		s = params[i].shortname;
-		if (strncmp(arg, s, strlen(s)) == 0)	/* matched short name */
+		if (std::strncmp(arg, s, std::strlen(s)) == 0)	/* matched short name */
 			break;
 	}
 
 	if (i < static_cast<int>(params.size())) {	/* found a match */
-		if (arg[strlen(s)] == '?') {
+		if (arg[std::strlen(s)] == '?') {
 			std::string buf;
 			if (std::holds_alternative<bool>(params[i].value))
 				buf = std::format("    {}{}",
@@ -104,20 +104,20 @@ doset(const char *arg)		/* parameter string */
 			msg(buf.c_str());
 			return 0;
 		}
-		if (!strcmp(params[i].fullname, "term")) {
+		if (!std::strcmp(params[i].fullname, "term")) {
 			emsg("Can't change type of terminal from within bvi");
 			return 1;
 		}
 		if (std::holds_alternative<off_t>(params[i].value)) {
 			if ((i == P_LI) || (i == P_OF)) did_window = true;
-			if (arg[strlen(s)] != '=' || state == false) {
+			if (arg[std::strlen(s)] != '=' || state == false) {
 				emsg(std::format("Option {} is not a toggle",
 						params[i].fullname).c_str());
 				return 1;
 			} else {
 				char *end = nullptr;
-				s = arg + strlen(s) + 1;
-				std::get<off_t>(params[i].value) = strtoll(s, &end, 0);
+				s = arg + std::strlen(s) + 1;
+				std::get<off_t>(params[i].value) = std::strtoll(s, &end, 0);
 				s = end;
 				params[i].changed = true;
 				if (i == P_CM) {
@@ -135,7 +135,7 @@ doset(const char *arg)		/* parameter string */
 				}
 			}
 		} else if (std::holds_alternative<bool>(params[i].value)) {
-			if (arg[strlen(s)] == '=') {
+			if (arg[std::strlen(s)] == '=') {
 				emsg("Invalid set of boolean parameter");
 				return 1;
 			} else {
@@ -203,14 +203,14 @@ read_rc(const char *fn)
 {
 	int i;
 
-	if ((ffp = fopen(fn, "r")) == nullptr) return -1;
+	if ((ffp = std::fopen(fn, "r")) == nullptr) return -1;
 	from_file = true;
-	while (fgets(fbuf, MAXCMD, ffp) != nullptr) {
-		i = strlen(fbuf) - 1;
+	while (std::fgets(fbuf, MAXCMD, ffp) != nullptr) {
+		i = std::strlen(fbuf) - 1;
 		while ((i >= 0) && (fbuf[i] == NL || fbuf[i] == CR)) fbuf[i--] = '\0';
 		docmdline(fbuf);
 	}
-	fclose(ffp);
+	std::fclose(ffp);
 	from_file = false;
 	return 0;
 }
@@ -225,14 +225,14 @@ do_logic(int mode, const char *str)
 	const char	*err_str ="Invalid value@for bit manipulation";
 
 	if (mode==LSHIFT || mode==RSHIFT || mode==LROTATE || mode==RROTATE) {
-		value = atoi(str);
+		value = std::atoi(str);
 		if (value < 1 || value > 8) {
 			emsg(err_str);
 			return 1;
 		}
 	} else {
-		if (strlen(str) == 8) {
-			value = strtol(str, nullptr, 2);
+		if (std::strlen(str) == 8) {
+			value = std::strtol(str, nullptr, 2);
 			for (n = 0; n < 8; n++) {
 				if (str[n] != '0' && str[n] != '1') {
 					value = -1;
@@ -240,17 +240,17 @@ do_logic(int mode, const char *str)
 				}
 			}
 		} else if (str[0] == 'b' || str[0] == 'B') {
-			value = strtol(str + 1, nullptr, 2);
+			value = std::strtol(str + 1, nullptr, 2);
 		} else if (str[0] == '0') {
-			value = strtol(str, nullptr, 0);
-			for (n = 0; n < strlen(str); n++) {
-				if (!isxdigit(str[n])) {
+			value = std::strtol(str, nullptr, 0);
+			for (n = 0; n < std::strlen(str); n++) {
+				if (!std::isxdigit(str[n])) {
 					value = -1;
 					break;
 				}
 			}
 		} else {
-			value = atoi(str);
+			value = std::atoi(str);
 		}
 		if (value < 0 || value > 255) {
 			emsg(err_str);
@@ -258,7 +258,7 @@ do_logic(int mode, const char *str)
 		}
 	}
 	if ((undo_count = alloc_buf((off_t)(end_addr - start_addr + 1), &undo_buf))) {
-		memcpy(undo_buf, start_addr, undo_count);
+		std::memcpy(undo_buf, start_addr, undo_count);
 	}
 	undo_start = start_addr;
 	edits = U_EDIT;
@@ -310,8 +310,8 @@ getcmdstr(std::string& p, int x)
 
 	if (from_file) {
 		char	tmp[MAXCMD+1];
-		if (fgets(tmp, sizeof(tmp), ffp) != nullptr) {
-			size_t i = strlen(tmp);
+		if (std::fgets(tmp, sizeof(tmp), ffp) != nullptr) {
+			size_t i = std::strlen(tmp);
 			while (i > 0 && (tmp[i - 1] == NL || tmp[i - 1] == CR))
 				tmp[--i] = '\0';
 			p = tmp;
@@ -321,7 +321,7 @@ getcmdstr(std::string& p, int x)
 		}
 	}
 
-	signal(SIGINT, jmpproc);
+	std::signal(SIGINT, jmpproc);
 	p.clear();
 	move(maxy, x);
     do {
@@ -342,14 +342,14 @@ getcmdstr(std::string& p, int x)
 				move(maxy, n);
             } else {
                 msg("");
-				signal(SIGINT, SIG_IGN);
+				std::signal(SIGINT, SIG_IGN);
                 return 1;
             }
             break;
         case ESC:           /* abandon command */
 			p.clear();
             msg("");
-			signal(SIGINT, SIG_IGN);
+			std::signal(SIGINT, SIG_IGN);
             return  1;
 #if NL != KEY_ENTER
         case NL:
@@ -370,6 +370,6 @@ getcmdstr(std::string& p, int x)
 		refresh();
     } while (c != NL && c != CR && c != KEY_ENTER);
 
-	signal(SIGINT, SIG_IGN);
+	std::signal(SIGINT, SIG_IGN);
 	return 0;
 }
