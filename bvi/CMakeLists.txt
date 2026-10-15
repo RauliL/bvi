@@ -50,6 +50,15 @@ install(
     share/applications
 )
 
+install(
+  FILES
+    bvi.1
+  DESTINATION
+    ${CMAKE_INSTALL_MANDIR}/man1
+  COMPONENT
+    doc
+)
+
 enable_testing()
 add_executable(
   re_test
