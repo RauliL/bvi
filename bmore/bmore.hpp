@@ -40,9 +40,9 @@
 #include <filesystem>
 #include <string_view>
 
-#include "version.hpp"
-#include "config.hpp"
-#include "regex.hpp"
+#include "../bvi/regex.hpp"
+#include "../config.hpp"
+#include "../version.hpp"
 
 #include <unistd.h>
 #include <term.h>

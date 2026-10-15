@@ -43,9 +43,9 @@
 
 #include <sys/stat.h>
 
-#include "config.hpp"
-#include "regex.hpp"
-#include "version.hpp"
+#include "../config.hpp"
+#include "../version.hpp"
+#include "./regex.hpp"
 
 #if defined(HAVE_NCURSES_H)
 #   include <ncurses.h>
