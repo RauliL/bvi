@@ -54,7 +54,7 @@ install(
   FILES
     bvi.1
   DESTINATION
-    ${CMAKE_INSTALL_MANDIR}/man1
+    share/man/man1
   COMPONENT
     doc
 )
